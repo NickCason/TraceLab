@@ -111,7 +111,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       const drawEdge = (side) => {
         const isLeft = side === "left";
         const edgePills = [];
-        signalEntries.forEach(({ signal, color, unit }, si) => {
+        signalEntries.forEach(({ signal, color, unit, isAvg }, si) => {
           const [yMin, yMax] = yRanges[si]; const yR = yMax - yMin;
           // Find first/last non-null value in view
           let idx = -1;
@@ -120,7 +120,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           if (idx === -1) return;
           const v = signal.values[idx];
           const y = pad.top + plotH - ((v - yMin) / yR) * plotH;
-          edgePills.push({ v, y, color, unit });
+          edgePills.push({ v, y, color, unit, isAvg: !!isAvg });
         });
         if (!edgePills.length) return;
         // Sort and layout to avoid overlaps
@@ -135,7 +135,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         // Draw
         ctx.textBaseline = "middle";
         edgePills.forEach(p => {
-          const valStr = p.v.toFixed(2) + (p.unit ? " " + p.unit : "");
+          const valStr = (p.isAvg ? "x\u0305 " : "") + p.v.toFixed(2) + (p.unit ? " " + p.unit : "");
           ctx.font = `bold 10px ${FONT_MONO}`;
           const tw = ctx.measureText(valStr).width;
           const pw = tw + 14;
@@ -158,7 +158,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.fill(); ctx.globalAlpha = 1;
 
           // Pill bg
-          ctx.fillStyle = t.chart; ctx.globalAlpha = 0.88;
+          ctx.fillStyle = t.chart; ctx.globalAlpha = p.isAvg ? 0.92 : 0.88;
           ctx.beginPath();
           ctx.moveTo(bx + 4, py); ctx.lineTo(bx + pw - 4, py);
           ctx.quadraticCurveTo(bx + pw, py, bx + pw, py + 4);
@@ -169,8 +169,9 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.lineTo(bx, py + 4);
           ctx.quadraticCurveTo(bx, py, bx + 4, py);
           ctx.fill();
-          // Pill border
-          ctx.strokeStyle = p.color; ctx.globalAlpha = 0.4; ctx.lineWidth = 1;
+          // Pill border — dashed for avg
+          ctx.strokeStyle = p.color; ctx.globalAlpha = p.isAvg ? 0.6 : 0.4; ctx.lineWidth = 1;
+          if (p.isAvg) ctx.setLineDash([3, 2]);
           ctx.beginPath();
           ctx.moveTo(bx + 4, py); ctx.lineTo(bx + pw - 4, py);
           ctx.quadraticCurveTo(bx + pw, py, bx + pw, py + 4);
@@ -181,9 +182,10 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.lineTo(bx, py + 4);
           ctx.quadraticCurveTo(bx, py, bx + 4, py);
           ctx.stroke();
+          if (p.isAvg) ctx.setLineDash([]);
           ctx.globalAlpha = 1;
           // Value text
-          ctx.fillStyle = p.color; ctx.globalAlpha = 0.9;
+          ctx.fillStyle = p.color; ctx.globalAlpha = p.isAvg ? 0.8 : 0.9;
           ctx.textAlign = isLeft ? "right" : "left";
           ctx.fillText(valStr, isLeft ? bx + pw - 6 : bx + 6, py + edgePillH / 2 + 0.5);
           ctx.globalAlpha = 1;
@@ -365,12 +367,12 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           const pillH = 14, pillGap = 2, pillPad = 5;
           // Collect values at both cursors
           const c1Pills = [], c2Pills = [];
-          signalEntries.forEach(({ signal, color: c2color, unit }, si) => {
+          signalEntries.forEach(({ signal, color: c2color, unit, isAvg }, si) => {
             const v1 = signal.values[cursorIdx];
             const v2 = signal.values[cursor2Idx];
             const [mn, mx] = yRanges[si];
-            if (v1 !== null) c1Pills.push({ v: v1, y: pad.top + plotH - ((v1 - mn) / (mx - mn)) * plotH, color: c2color, unit });
-            if (v2 !== null) c2Pills.push({ v: v2, y: pad.top + plotH - ((v2 - mn) / (mx - mn)) * plotH, color: c2color, unit });
+            if (v1 !== null) c1Pills.push({ v: v1, y: pad.top + plotH - ((v1 - mn) / (mx - mn)) * plotH, color: c2color, unit, isAvg: !!isAvg });
+            if (v2 !== null) c2Pills.push({ v: v2, y: pad.top + plotH - ((v2 - mn) / (mx - mn)) * plotH, color: c2color, unit, isAvg: !!isAvg });
           });
 
           // Layout helper
@@ -386,14 +388,14 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             });
             ctx.textBaseline = "middle";
             pills.forEach(p => {
-              const valStr = p.v.toFixed(3) + (p.unit ? " " + p.unit : "");
+              const valStr = (p.isAvg ? "x\u0305 " : "") + p.v.toFixed(3) + (p.unit ? " " + p.unit : "");
               ctx.font = `bold 9px ${FONT_MONO}`;
               const tw = ctx.measureText(valStr).width;
               const pw = tw + 12; // 6px padding each side
               const px = side === "left" ? anchorX - pw - 6 : anchorX + 6;
               const py = p._py;
               // Background
-              ctx.fillStyle = t.chart; ctx.globalAlpha = 0.88;
+              ctx.fillStyle = t.chart; ctx.globalAlpha = p.isAvg ? 0.92 : 0.88;
               ctx.beginPath();
               ctx.moveTo(px + 4, py); ctx.lineTo(px + pw - 4, py);
               ctx.quadraticCurveTo(px + pw, py, px + pw, py + 4);
@@ -404,8 +406,9 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
               ctx.lineTo(px, py + 4);
               ctx.quadraticCurveTo(px, py, px + 4, py);
               ctx.fill();
-              // Border
-              ctx.strokeStyle = p.color; ctx.globalAlpha = 0.4; ctx.lineWidth = 1;
+              // Border — dashed for avg
+              ctx.strokeStyle = p.color; ctx.globalAlpha = p.isAvg ? 0.6 : 0.4; ctx.lineWidth = 1;
+              if (p.isAvg) ctx.setLineDash([3, 2]);
               ctx.beginPath();
               ctx.moveTo(px + 4, py); ctx.lineTo(px + pw - 4, py);
               ctx.quadraticCurveTo(px + pw, py, px + pw, py + 4);
@@ -415,9 +418,11 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
               ctx.quadraticCurveTo(px, py + pillH, px, py + pillH - 4);
               ctx.lineTo(px, py + 4);
               ctx.quadraticCurveTo(px, py, px + 4, py);
-              ctx.stroke(); ctx.globalAlpha = 1;
+              ctx.stroke();
+              if (p.isAvg) ctx.setLineDash([]);
+              ctx.globalAlpha = 1;
               // Value text — centered in pill
-              ctx.fillStyle = p.color; ctx.globalAlpha = 0.95;
+              ctx.fillStyle = p.color; ctx.globalAlpha = p.isAvg ? 0.8 : 0.95;
               ctx.textAlign = "center";
               ctx.fillText(valStr, px + pw / 2, py + pillH / 2 + 0.5);
               ctx.globalAlpha = 1;
