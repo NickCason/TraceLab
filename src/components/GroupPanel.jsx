@@ -25,7 +25,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
 
   const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(true); };
   const handleDragLeave = () => setDragOver(false);
-  const handleDrop2 = (e) => {
+  const handleDrop = (e) => {
     e.preventDefault(); setDragOver(false);
     const idx = parseInt(e.dataTransfer.getData("text/plain"));
     if (!isNaN(idx)) onDrop(idx, groupIdx);
@@ -49,7 +49,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
 
   return (
     <div
-      onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop2}
+      onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
       style={{
         borderRadius: 8, marginBottom: 4, overflow: "visible",
         border: `1px solid ${dragOver ? color + "66" : isEmpty ? t.borderSubtle : color + "22"}`,
