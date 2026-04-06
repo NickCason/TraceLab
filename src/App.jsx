@@ -351,7 +351,7 @@ export default function App() {
 
   const sc = t.sigColors;
   const getSignalColor = (i) => signalStyles[i]?.color || sc[i % sc.length];
-  const tabSt = (active, accent) => ({ padding: "8px 6px", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer", background: "none", border: "none", borderBottom: `2px solid ${active ? (accent || t.accent) : "transparent"}`, color: active ? (accent || t.text1) : t.text3, transition: "all 0.15s", fontFamily: FONT_DISPLAY, flexShrink: 0, whiteSpace: "nowrap" });
+  const tabSt = (active, accent) => ({ padding: "8px 0", fontSize: 10, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", cursor: "pointer", background: "none", border: "none", borderBottom: `2px solid ${active ? (accent || t.accent) : "transparent"}`, color: active ? (accent || t.text1) : t.text3, transition: "all 0.15s", fontFamily: FONT_DISPLAY, flex: 1, textAlign: "center", whiteSpace: "nowrap" });
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column", background: t.bg, fontFamily: FONT_MONO, color: t.text1, overflow: "hidden" }}>
@@ -382,7 +382,7 @@ export default function App() {
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         <div style={{ width: 280, flexShrink: 0, background: t.panel, borderRight: `1px solid ${t.border}`, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: t.panelShadow }}>
-          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${t.border}`, padding: "0 6px", overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none" }}>
+          <div style={{ display: "flex", borderBottom: `1px solid ${t.border}` }}>
             {["signals", "stats", "meta", "rebase", "export"].map(tab => <button key={tab} onClick={() => setActivePanel(tab)} style={tabSt(activePanel === tab, tab === "export" ? t.green : tab === "rebase" ? t.warn : null)}>{tab}</button>)}
           </div>
           <div style={{ flex: 1, overflow: "auto", padding: 10 }}>
