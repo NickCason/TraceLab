@@ -84,8 +84,8 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
         )}
         {cursorValue !== undefined && cursorValue !== null && vis && (
           <div style={{ fontSize: 13, color: color, marginTop: 1, fontFamily: FONT_MONO }}>
-            {cursorValue?.toFixed(6) ?? "—"}{unit ? ` ${unit}` : ""}
-            {deltaMode && cursor2Value !== undefined && <span style={{ color: THEMES[theme].cursor2, marginLeft: 5, fontSize: 8 }}>Δ {cursor2Value !== null && cursorValue !== null ? (cursor2Value - cursorValue).toFixed(6) : "—"}{unit ? ` ${unit}` : ""}</span>}
+            {cursorValue?.toFixed(3) ?? "—"}{unit ? ` ${unit}` : ""}
+            {deltaMode && cursor2Value !== undefined && <span style={{ color: THEMES[theme].cursor2, marginLeft: 5, fontSize: 8 }}>Δ {cursor2Value !== null && cursorValue !== null ? (cursor2Value - cursorValue).toFixed(3) : "—"}{unit ? ` ${unit}` : ""}</span>}
           </div>
         )}
       </div>
