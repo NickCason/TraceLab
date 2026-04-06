@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Dark rounded background -->
+  <rect width="32" height="32" rx="5" fill="#1a1a1e"/>
+  <!-- Subtle center grid lines -->
+  <line x1="0" y1="16" x2="32" y2="16" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.08"/>
+  <line x1="16" y1="0" x2="16" y2="32" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.08"/>
+  <!-- Square-wave / PLC trace in periwinkle purple -->
+  <polyline
+    points="2,21 7,21 7,9 13,9 13,23 19,23 19,11 25,11 25,21 30,21"
+    fill="none" stroke="#8b8ff5" stroke-width="2.2"
+    stroke-linecap="round" stroke-linejoin="round"
+  />
+  <!-- Cursor dot (red, like TraceLab's analysis cursor) -->
+  <circle cx="19" cy="23" r="2.2" fill="#ff6b6b"/>
+</svg>
