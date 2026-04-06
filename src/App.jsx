@@ -33,7 +33,9 @@ export default function App() {
   const [activePanel, setActivePanel] = useState("signals");
   const [metadata, setMetadata] = useState({});
   const [editingMeta, setEditingMeta] = useState(null);
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState(() =>
+    window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+  );
   const [rebaseOffset, setRebaseOffset] = useState(0);
   const [rebaseInput, setRebaseInput] = useState("");
   const [toast, setToast] = useState(null);
