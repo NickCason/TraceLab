@@ -3,7 +3,7 @@ import { THEMES, FONT_DISPLAY } from "../constants/theme";
 import { GROUP_LABELS } from "../constants/groups";
 import SignalCard from "./SignalCard";
 
-export default function GroupPanel({ groupIdx, label, color, signals, sigColors, visible, groups, cursorValues, cursor2Values, deltaMode, metadata, data, onDrop, onToggleVisible, onToggleGroup, onSetGroupName, onStyleChange, signalStyles, theme, getDisplayName, avgWindow, hideOriginal, onSetAvgWindow, onToggleOriginal }) {
+export default function GroupPanel({ groupIdx, label, color, signals, sigColors, visible, groups, cursorValues, cursor2Values, deltaMode, metadata, data, onDrop, onToggleVisible, onToggleGroup, onSetGroupName, onStyleChange, signalStyles, derivedConfigs, onEditDerived, theme, getDisplayName }) {
   const t = THEMES[theme];
   const [dragOver, setDragOver] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -141,12 +141,10 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
               isDigital={data.signals[i].isDigital}
               onToggleVisible={onToggleVisible}
               onStyleChange={onStyleChange}
+              isDerived={!!data.signals[i].isDerived}
+              derivedType={data.signals[i].derivedType || derivedConfigs?.[i]?.type || null}
+              onEditDerived={onEditDerived}
               theme={theme}
-              showAvg={!!(avgWindow[i] && avgWindow[i] > 0)}
-              avgWindow={avgWindow[i] || 0}
-              hideOriginal={!!hideOriginal[i]}
-              onSetAvgWindow={onSetAvgWindow}
-              onToggleOriginal={onToggleOriginal}
             />
           ))}
         </div>

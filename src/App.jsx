@@ -6,6 +6,7 @@ import ToolBtn from "./components/ToolBtn";
 import GroupPanel from "./components/GroupPanel";
 import MarqueeText from "./components/MarqueeText";
 import Toast from "./components/Toast";
+import DerivedPenDialog from "./components/DerivedPenDialog";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "./constants/theme";
 import { GROUP_COLORS_DARK, GROUP_COLORS_LIGHT, GROUP_LABELS, MAX_GROUPS } from "./constants/groups";
 import { parseStudio5000CSV } from "./utils/parser";
@@ -511,9 +512,11 @@ export default function App() {
                       metadata={metadata}
                       data={data}
                       signalStyles={signalStyles}
+                      derivedConfigs={derivedConfigs}
                       onDrop={(sigIdx, targetGroup) => setGroup(sigIdx, targetGroup)}
                       onToggleVisible={toggleSignal}
                       onToggleGroup={toggleGroup}
+                      onEditDerived={openEditDerived}
                       onSetGroupName={(g, name) => setGroupNames(prev => { const n = { ...prev }; if (name) n[g] = name; else delete n[g]; return n; })}
                       onStyleChange={(idx, updates) => setSignalStyles(prev => {
                         const cur = prev[idx] || {};
@@ -526,10 +529,6 @@ export default function App() {
                       })}
                       theme={theme}
                       getDisplayName={getDisplayName}
-                      avgWindow={avgWindow}
-                      hideOriginal={hideOriginal}
-                      onSetAvgWindow={(idx, win) => setAvgWindow(prev => ({ ...prev, [idx]: win }))}
-                      onToggleOriginal={(idx) => setHideOriginal(prev => ({ ...prev, [idx]: !prev[idx] }))}
                     />
                   );
                 })}
@@ -700,6 +699,23 @@ export default function App() {
           </div>
         </div>
       </div>
+      <DerivedPenDialog
+        open={derivedDialog.open}
+        mode={derivedDialog.mode}
+        theme={theme}
+        signals={data.signals}
+        groups={groups}
+        defaultGroupIdx={derivedDialog.groupIdx}
+        defaultType={derivedDialog.type}
+        initialDraft={derivedDialog.initialDraft}
+        getDisplayName={getDisplayName}
+        onCancel={() => setDerivedDialog(prev => ({ ...prev, open: false, editIdx: null, initialDraft: null }))}
+        onCreate={(draft) => {
+          if (derivedDialog.mode === "edit" && derivedDialog.editIdx !== null) updateDerivedPen(derivedDialog.editIdx, draft);
+          else createDerivedPen(draft);
+          setDerivedDialog(prev => ({ ...prev, open: false, editIdx: null, initialDraft: null }));
+        }}
+      />
       {toast && <Toast message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </div>
   );
