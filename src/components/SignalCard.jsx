@@ -3,9 +3,7 @@ import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import Sparkline from "./Sparkline";
 import MarqueeText from "./MarqueeText";
 
-const AVG_PRESETS = [5, 10, 20, 50, 100, 250, 500];
-
-export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, onToggleVisible, onStyleChange, theme, showAvg, avgWindow, hideOriginal, onSetAvgWindow, onToggleOriginal }) {
+export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, onEditDerived, onToggleVisible, onStyleChange, theme }) {
   const t = THEMES[theme];
   const hasCustomName = displayName !== tagName;
   const [showStylePicker, setShowStylePicker] = useState(false);
@@ -75,7 +73,7 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
           {displayName}
           {unit && <span style={{ fontSize: 13, color: t.text3, fontWeight: 400, fontFamily: FONT_MONO, flexShrink: 0 }}>[{unit}]</span>}
           {isDigital && <span style={{ fontSize: 12, color: t.accent, background: t.accentDim, padding: "1px 4px", borderRadius: 3, fontWeight: 700, letterSpacing: 0.5, lineHeight: "10px", flexShrink: 0, fontFamily: FONT_DISPLAY }}>DIG</span>}
-          {showAvg && <span style={{ fontSize: 10, color: t.warn, background: t.warn + "18", padding: "1px 4px", borderRadius: 3, fontWeight: 700, letterSpacing: 0.5, lineHeight: "10px", flexShrink: 0, fontFamily: FONT_MONO }}>x̄{avgWindow}</span>}
+          {isDerived && <span style={{ fontSize: 10, color: t.warn, background: t.warn + "18", padding: "1px 4px", borderRadius: 3, fontWeight: 700, letterSpacing: 0.5, lineHeight: "10px", flexShrink: 0, fontFamily: FONT_MONO }}>{(derivedType || "derived").toUpperCase()}</span>}
         </MarqueeText>
         {hasCustomName && (
           <MarqueeText style={{ fontSize: 12, color: t.text4, fontFamily: FONT_MONO, marginTop: 1 }}>
@@ -126,88 +124,14 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
           <div onClick={() => { onStyleChange(index, { color: null, dash: null }); setShowStylePicker(false); }} style={{
             marginTop: 6, fontSize: 12, color: t.text4, cursor: "pointer", textAlign: "center", fontFamily: FONT_DISPLAY,
           }}>Reset to default</div>
-
-          {/* ── Average / Derived section ── */}
-          <div style={{ marginTop: 8, borderTop: `1px solid ${t.border}`, paddingTop: 6 }}>
-            <div style={{ fontSize: 12, color: t.text3, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 5, fontFamily: FONT_DISPLAY }}>Traces</div>
-
-            {/* Original toggle */}
-            <div
-              onClick={() => onToggleOriginal(index)}
-              style={{
-                display: "flex", alignItems: "center", gap: 5, padding: "3px 5px", borderRadius: 5, cursor: "pointer", marginBottom: 3,
-                background: !hideOriginal ? color + "12" : "transparent",
-                border: `1px solid ${!hideOriginal ? color + "33" : t.border}`,
-              }}
+          {isDerived && (
+            <button
+              onClick={() => { setShowStylePicker(false); onEditDerived?.(index); }}
+              style={{ marginTop: 6, width: "100%", padding: "4px 0", borderRadius: 7, border: `1px solid ${t.warn}44`, background: t.warn + "16", color: t.warn, fontSize: 11, fontFamily: FONT_DISPLAY, fontWeight: 700, cursor: "pointer" }}
             >
-              <div style={{
-                width: 10, height: 10, borderRadius: 2,
-                border: `1.5px solid ${!hideOriginal ? color : t.text4}`,
-                background: !hideOriginal ? color + "33" : "transparent",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                {!hideOriginal && <svg width="6" height="6" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: !hideOriginal ? t.text2 : t.text4, fontFamily: FONT_DISPLAY }}>Original</span>
-              <svg width="16" height="6" viewBox="0 0 16 6" style={{ marginLeft: "auto", opacity: 0.4 }}>
-                <line x1="0" y1="3" x2="16" y2="3" stroke={color} strokeWidth="1.5" />
-              </svg>
-            </div>
-
-            {/* Average toggle */}
-            <div
-              onClick={() => onSetAvgWindow(index, showAvg ? 0 : 20)}
-              style={{
-                display: "flex", alignItems: "center", gap: 5, padding: "3px 5px", borderRadius: 5, cursor: "pointer",
-                background: showAvg ? color + "12" : "transparent",
-                border: `1px solid ${showAvg ? color + "33" : t.border}`,
-              }}
-            >
-              <div style={{
-                width: 10, height: 10, borderRadius: 2,
-                border: `1.5px solid ${showAvg ? color : t.text4}`,
-                background: showAvg ? color + "33" : "transparent",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                {showAvg && <svg width="6" height="6" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: showAvg ? t.text2 : t.text4, fontFamily: FONT_DISPLAY }}>Average</span>
-              <svg width="16" height="6" viewBox="0 0 16 6" style={{ marginLeft: "auto", opacity: 0.4 }}>
-                <line x1="0" y1="3" x2="16" y2="3" stroke={color} strokeWidth="1.5" strokeDasharray="3,2" />
-              </svg>
-            </div>
-
-            {/* Window size controls — only when avg is on */}
-            {showAvg && (
-              <div style={{ marginTop: 5, padding: "4px 5px", background: t.surface, borderRadius: 6, border: `1px solid ${t.border}` }}>
-                <div style={{ fontSize: 10, color: t.text3, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 3, fontFamily: FONT_DISPLAY }}>
-                  Window: <span style={{ color: t.warn, fontFamily: FONT_MONO }}>{avgWindow}</span> samples
-                </div>
-                <input
-                  type="range"
-                  min={2} max={500} value={avgWindow}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => { e.stopPropagation(); onSetAvgWindow(index, parseInt(e.target.value)); }}
-                  style={{ width: "100%", height: 14, cursor: "pointer", accentColor: color }}
-                />
-                <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 3 }}>
-                  {AVG_PRESETS.map(p => (
-                    <button
-                      key={p}
-                      onClick={(e) => { e.stopPropagation(); onSetAvgWindow(index, p); }}
-                      style={{
-                        padding: "1px 5px", fontSize: 10, fontFamily: FONT_MONO, fontWeight: 600,
-                        cursor: "pointer", borderRadius: 4,
-                        border: `1px solid ${avgWindow === p ? color + "66" : t.border}`,
-                        background: avgWindow === p ? color + "18" : "transparent",
-                        color: avgWindow === p ? color : t.text4,
-                      }}
-                    >{p}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+              Edit Derived Settings
+            </button>
+          )}
         </div>
       )}
     </div>

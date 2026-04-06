@@ -3,7 +3,7 @@ import { THEMES, FONT_DISPLAY } from "../constants/theme";
 import { GROUP_LABELS } from "../constants/groups";
 import SignalCard from "./SignalCard";
 
-export default function GroupPanel({ groupIdx, label, color, signals, sigColors, visible, groups, cursorValues, cursor2Values, deltaMode, metadata, data, onDrop, onToggleVisible, onToggleGroup, onSetGroupName, onStyleChange, signalStyles, theme, getDisplayName, avgWindow, hideOriginal, onSetAvgWindow, onToggleOriginal }) {
+export default function GroupPanel({ groupIdx, label, color, signals, sigColors, visible, groups, cursorValues, cursor2Values, deltaMode, metadata, data, onDrop, onToggleVisible, onToggleGroup, onSetGroupName, onStyleChange, signalStyles, derivedConfigs, onEditDerived, theme, getDisplayName }) {
   const t = THEMES[theme];
   const [dragOver, setDragOver] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -25,7 +25,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
 
   const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(true); };
   const handleDragLeave = () => setDragOver(false);
-  const handleDrop2 = (e) => {
+  const handleDrop = (e) => {
     e.preventDefault(); setDragOver(false);
     const idx = parseInt(e.dataTransfer.getData("text/plain"));
     if (!isNaN(idx)) onDrop(idx, groupIdx);
@@ -49,7 +49,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
 
   return (
     <div
-      onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop2}
+      onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
       style={{
         borderRadius: 8, marginBottom: 4, overflow: "visible",
         border: `1px solid ${dragOver ? color + "66" : isEmpty ? t.borderSubtle : color + "22"}`,
@@ -141,12 +141,10 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
               isDigital={data.signals[i].isDigital}
               onToggleVisible={onToggleVisible}
               onStyleChange={onStyleChange}
+              isDerived={!!data.signals[i].isDerived}
+              derivedType={data.signals[i].derivedType || derivedConfigs?.[i]?.type || null}
+              onEditDerived={onEditDerived}
               theme={theme}
-              showAvg={!!(avgWindow[i] && avgWindow[i] > 0)}
-              avgWindow={avgWindow[i] || 0}
-              hideOriginal={!!hideOriginal[i]}
-              onSetAvgWindow={onSetAvgWindow}
-              onToggleOriginal={onToggleOriginal}
             />
           ))}
         </div>
