@@ -32,6 +32,7 @@ export default function App() {
   const [hideOriginal, setHideOriginal] = useState({}); // { [signalIdx]: true } — hide original when avg shown
   const [derivedConfigs, setDerivedConfigs] = useState({}); // { [signalIdx]: { type, ...params } }
   const [derivedPresetByGroup, setDerivedPresetByGroup] = useState({}); // { [groupIdx]: "equation" | "rolling_avg" | ... }
+  const [derivedDialog, setDerivedDialog] = useState({ open: false, mode: "create", groupIdx: 1, type: "equation", editIdx: null, initialDraft: null });
   const [viewRange, setViewRange] = useState([0, 0]);
   const [activePanel, setActivePanel] = useState("signals");
   const [metadata, setMetadata] = useState({});
@@ -100,31 +101,23 @@ export default function App() {
     return { ...sourceData, signals };
   }, []);
 
-  const createDerivedPen = useCallback((groupIdx, presetType) => {
+  const toDerivedCfg = useCallback((draft) => {
+    const type = draft.type || "equation";
+    if (type === "equation") return { type: "equation", expression: draft.expression || "s0 - s1" };
+    if (type === "rolling_avg") return { type: "rolling_avg", source: parseInt(draft.source, 10) || 0, window: Math.max(2, parseInt(draft.window, 10) || 20) };
+    return { type, sources: [parseInt(draft.sources?.[0], 10) || 0, parseInt(draft.sources?.[1], 10) || 1] };
+  }, []);
+
+  const createDerivedPen = useCallback((draft) => {
     if (!data) return;
-    const type = presetType || "equation";
+    const type = draft.type || "equation";
     const nextIdx = data.signals.length;
-    let cfg = null;
-    if (type === "equation") {
-      const expression = window.prompt("Derived equation (use s0, s1, ... where sN is signal index N):", "s0 - s1");
-      if (!expression) return;
-      cfg = { type: "equation", expression };
-    } else if (type === "rolling_avg") {
-      const source = parseInt(window.prompt("Source signal index (e.g. 0):", "0") || "", 10);
-      const windowSize = parseInt(window.prompt("Rolling average window size:", "20") || "", 10);
-      if (Number.isNaN(source) || Number.isNaN(windowSize)) return;
-      cfg = { type: "rolling_avg", source, window: Math.max(2, windowSize) };
-    } else {
-      const a = parseInt(window.prompt("First signal index (A):", "0") || "", 10);
-      const b = parseInt(window.prompt("Second signal index (B):", "1") || "", 10);
-      if (Number.isNaN(a) || Number.isNaN(b)) return;
-      cfg = { type, sources: [a, b] };
-    }
+    const cfg = toDerivedCfg(draft);
 
     const friendly = type === "rolling_avg" ? `RollingAvg(s${cfg.source}, ${cfg.window})` :
       type === "equation" ? `Eq: ${cfg.expression}` :
       `${type}(${(cfg.sources || []).map(s => `s${s}`).join(", ")})`;
-    const baseName = window.prompt("Derived pen name:", friendly) || friendly;
+    const baseName = (draft.name || "").trim() || friendly;
 
     const baseData = {
       ...data,
@@ -136,11 +129,31 @@ export default function App() {
     setDerivedConfigs(nextCfgs);
     setData(recomputed);
     setVisible(v => [...v, true]);
-    setGroups(g => [...g, groupIdx]);
+    setGroups(g => [...g, parseInt(draft.groupIdx, 10) || 1]);
     setMetadata(m => ({ ...m, [nextIdx]: { ...(m[nextIdx] || {}), displayName: baseName } }));
-    setSignalStyles(s => ({ ...s, [nextIdx]: { color: gc[(groupIdx - 1) % gc.length], dash: "dashed" } }));
-    showToast(`Derived pen added to Group ${groupIdx}`, "success");
-  }, [data, derivedConfigs, recomputeDerivedSignals, gc, showToast]);
+    const targetGroup = parseInt(draft.groupIdx, 10) || 1;
+    setSignalStyles(s => ({ ...s, [nextIdx]: { color: gc[(targetGroup - 1) % gc.length], dash: "dashed" } }));
+    showToast(`Derived pen added to Group ${targetGroup}`, "success");
+  }, [data, derivedConfigs, recomputeDerivedSignals, gc, showToast, toDerivedCfg]);
+
+  const updateDerivedPen = useCallback((idx, draft) => {
+    if (!data || !derivedConfigs[idx]) return;
+    const cfg = toDerivedCfg(draft);
+    const targetGroup = parseInt(draft.groupIdx, 10) || groups[idx] || 1;
+    const baseName = (draft.name || "").trim() || data.tagNames[idx] || `Derived ${idx}`;
+    const nextCfgs = { ...derivedConfigs, [idx]: cfg };
+    const dataWithRename = {
+      ...data,
+      tagNames: data.tagNames.map((n, i) => i === idx ? baseName : n),
+      signals: data.signals.map((s, i) => i === idx ? { ...s, name: baseName, isDerived: true, derivedType: cfg.type } : s),
+    };
+    const recomputed = recomputeDerivedSignals(dataWithRename, nextCfgs);
+    setDerivedConfigs(nextCfgs);
+    setData(recomputed);
+    setGroups(g => { const n = [...g]; n[idx] = targetGroup; return n; });
+    setMetadata(m => ({ ...m, [idx]: { ...(m[idx] || {}), displayName: baseName } }));
+    showToast(`Derived pen updated`, "success");
+  }, [data, derivedConfigs, groups, recomputeDerivedSignals, showToast, toDerivedCfg]);
 
   useEffect(() => {
     ensureFonts();
@@ -516,7 +529,26 @@ export default function App() {
                       onDrop={(sigIdx, targetGroup) => setGroup(sigIdx, targetGroup)}
                       onToggleVisible={toggleSignal}
                       onToggleGroup={toggleGroup}
-                      onEditDerived={openEditDerived}
+                      onEditDerived={(idx) => {
+                        const cfg = derivedConfigs[idx];
+                        if (!cfg) return;
+                        setDerivedDialog({
+                          open: true,
+                          mode: "edit",
+                          editIdx: idx,
+                          groupIdx: groups[idx] || 1,
+                          type: cfg.type || "equation",
+                          initialDraft: {
+                            name: metadata[idx]?.displayName || data?.tagNames?.[idx] || "",
+                            groupIdx: groups[idx] || 1,
+                            type: cfg.type || "equation",
+                            expression: cfg.expression || "s0 - s1",
+                            source: cfg.source ?? 0,
+                            window: cfg.window ?? 20,
+                            sources: cfg.sources || [0, 1],
+                          },
+                        });
+                      }}
                       onSetGroupName={(g, name) => setGroupNames(prev => { const n = { ...prev }; if (name) n[g] = name; else delete n[g]; return n; })}
                       onStyleChange={(idx, updates) => setSignalStyles(prev => {
                         const cur = prev[idx] || {};
@@ -650,7 +682,7 @@ export default function App() {
                           <option value="ratio">Ratio</option>
                         </select>
                         <button
-                          onClick={() => createDerivedPen(pane.groupIdx, derivedPresetByGroup[pane.groupIdx] || "equation")}
+                          onClick={() => setDerivedDialog({ open: true, mode: "create", groupIdx: pane.groupIdx, type: derivedPresetByGroup[pane.groupIdx] || "equation", editIdx: null, initialDraft: null })}
                           style={{ padding: "1px 6px", borderRadius: 4, border: `1px solid ${paneGc}66`, background: paneGc + "22", color: paneGc, fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, cursor: "pointer" }}
                           title="Add derived pen to this chart"
                         >
