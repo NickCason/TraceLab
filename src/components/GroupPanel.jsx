@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { THEMES, FONT_DISPLAY } from "../constants/theme";
+import { GROUP_LABELS } from "../constants/groups";
 import SignalCard from "./SignalCard";
 
 export default function GroupPanel({ groupIdx, label, color, signals, sigColors, visible, groups, cursorValues, cursor2Values, deltaMode, metadata, data, onDrop, onToggleVisible, onToggleGroup, onSetGroupName, onStyleChange, signalStyles, theme, getDisplayName, avgWindow, hideOriginal, onSetAvgWindow, onToggleOriginal }) {
