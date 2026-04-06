@@ -1,4 +1,4 @@
-# TraceLab
+# TraceLab README
 
 This package turns the original single-file TraceLab JSX into a local Vite + React app that is easier to run, edit, and maintain.
 
