@@ -1,14 +1,18 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { fmtDateISO, fmtTsClean } from "../utils/date";
 import { downloadBlob } from "../utils/download";
+import { buildDefaultExportPens } from "../utils/exportPens";
 
 export default function ExportPanel({ data, metadata, viewRange, getDisplayName, theme, onToast, rebaseOffset }) {
   const t = THEMES[theme];
-  const [exportPens, setExportPens] = useState(() => data.signals.map(() => true));
+  const [exportPens, setExportPens] = useState(() => buildDefaultExportPens(data));
   const [rateMultiplier, setRateMultiplier] = useState(1);
   const [exportRange, setExportRange] = useState("all");
   const [showPreview, setShowPreview] = useState(false);
+  useEffect(() => {
+    setExportPens(buildDefaultExportPens(data));
+  }, [data]);
   const basePeriod = data.meta.samplePeriod || 5; const baseUnit = data.meta.sampleUnit || "ms";
   const multipliers = [1, 2, 3, 4, 5, 10, 20, 50, 100];
   const togglePen = (i) => setExportPens(p => { const n = [...p]; n[i] = !n[i]; return n; });
