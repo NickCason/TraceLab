@@ -29,6 +29,8 @@ export default function App() {
   const [splitRanges, setSplitRanges] = useState({}); // { [groupIdx]: true } — split Y range (default: unified)
   const [avgWindow, setAvgWindow] = useState({}); // { [signalIdx]: number } — moving average window size (0 = off)
   const [hideOriginal, setHideOriginal] = useState({}); // { [signalIdx]: true } — hide original when avg shown
+  const [derivedConfigs, setDerivedConfigs] = useState({}); // { [signalIdx]: { type, ...params } }
+  const [derivedPresetByGroup, setDerivedPresetByGroup] = useState({}); // { [groupIdx]: "equation" | "rolling_avg" | ... }
   const [viewRange, setViewRange] = useState([0, 0]);
   const [activePanel, setActivePanel] = useState("signals");
   const [metadata, setMetadata] = useState({});
@@ -45,6 +47,99 @@ export default function App() {
   const t = THEMES[theme];
   const gc = theme === "dark" ? GROUP_COLORS_DARK : GROUP_COLORS_LIGHT;
   const showToast = useCallback((msg, type = "info") => setToast({ msg, type }), []);
+
+  const recomputeDerivedSignals = useCallback((sourceData, cfgMap) => {
+    if (!sourceData) return sourceData;
+    const signals = sourceData.signals.map(sig => ({ ...sig, values: [...sig.values] }));
+    const derivedIdxs = Object.keys(cfgMap).map(k => parseInt(k)).filter(i => !isNaN(i)).sort((a, b) => a - b);
+    derivedIdxs.forEach((idx) => {
+      const cfg = cfgMap[idx];
+      if (!cfg || !signals[idx]) return;
+      const getAt = (sigIdx, sampleIdx) => {
+        const v = signals[sigIdx]?.values?.[sampleIdx];
+        return (v === null || v === undefined || Number.isNaN(v)) ? null : v;
+      };
+      const out = new Array(sourceData.timestamps.length).fill(null);
+      if (cfg.type === "rolling_avg") {
+        const src = cfg.source;
+        const win = Math.max(2, parseInt(cfg.window || 20));
+        const buf = [];
+        let sum = 0;
+        for (let i = 0; i < out.length; i++) {
+          const v = getAt(src, i);
+          if (v !== null) {
+            buf.push(v); sum += v;
+            if (buf.length > win) sum -= buf.shift();
+            out[i] = sum / buf.length;
+          } else out[i] = buf.length ? sum / buf.length : null;
+        }
+      } else if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio") {
+        const [aIdx, bIdx] = cfg.sources || [];
+        for (let i = 0; i < out.length; i++) {
+          const a = getAt(aIdx, i), b = getAt(bIdx, i);
+          if (a === null || b === null) continue;
+          if (cfg.type === "difference") out[i] = a - b;
+          else if (cfg.type === "sum") out[i] = a + b;
+          else out[i] = Math.abs(b) < 1e-12 ? null : a / b;
+        }
+      } else if (cfg.type === "equation") {
+        try {
+          // Equation can reference signals as s0, s1, ... (base or derived)
+          const fn = new Function("s", "Math", `with (Math) { return ${cfg.expression}; }`);
+          for (let i = 0; i < out.length; i++) {
+            const val = fn((sigIdx) => getAt(sigIdx, i), Math);
+            out[i] = (typeof val === "number" && Number.isFinite(val)) ? val : null;
+          }
+        } catch {
+          // keep nulls
+        }
+      }
+      signals[idx] = { ...signals[idx], values: out, isDigital: false, isDerived: true, derivedType: cfg.type };
+    });
+    return { ...sourceData, signals };
+  }, []);
+
+  const createDerivedPen = useCallback((groupIdx, presetType) => {
+    if (!data) return;
+    const type = presetType || "equation";
+    const nextIdx = data.signals.length;
+    let cfg = null;
+    if (type === "equation") {
+      const expression = window.prompt("Derived equation (use s0, s1, ... where sN is signal index N):", "s0 - s1");
+      if (!expression) return;
+      cfg = { type: "equation", expression };
+    } else if (type === "rolling_avg") {
+      const source = parseInt(window.prompt("Source signal index (e.g. 0):", "0") || "", 10);
+      const windowSize = parseInt(window.prompt("Rolling average window size:", "20") || "", 10);
+      if (Number.isNaN(source) || Number.isNaN(windowSize)) return;
+      cfg = { type: "rolling_avg", source, window: Math.max(2, windowSize) };
+    } else {
+      const a = parseInt(window.prompt("First signal index (A):", "0") || "", 10);
+      const b = parseInt(window.prompt("Second signal index (B):", "1") || "", 10);
+      if (Number.isNaN(a) || Number.isNaN(b)) return;
+      cfg = { type, sources: [a, b] };
+    }
+
+    const friendly = type === "rolling_avg" ? `RollingAvg(s${cfg.source}, ${cfg.window})` :
+      type === "equation" ? `Eq: ${cfg.expression}` :
+      `${type}(${(cfg.sources || []).map(s => `s${s}`).join(", ")})`;
+    const baseName = window.prompt("Derived pen name:", friendly) || friendly;
+
+    const baseData = {
+      ...data,
+      tagNames: [...data.tagNames, baseName],
+      signals: [...data.signals, { name: baseName, values: new Array(data.timestamps.length).fill(null), isDigital: false, isDerived: true, derivedType: type }],
+    };
+    const nextCfgs = { ...derivedConfigs, [nextIdx]: cfg };
+    const recomputed = recomputeDerivedSignals(baseData, nextCfgs);
+    setDerivedConfigs(nextCfgs);
+    setData(recomputed);
+    setVisible(v => [...v, true]);
+    setGroups(g => [...g, groupIdx]);
+    setMetadata(m => ({ ...m, [nextIdx]: { ...(m[nextIdx] || {}), displayName: baseName } }));
+    setSignalStyles(s => ({ ...s, [nextIdx]: { color: gc[(groupIdx - 1) % gc.length], dash: "dashed" } }));
+    showToast(`Derived pen added to Group ${groupIdx}`, "success");
+  }, [data, derivedConfigs, recomputeDerivedSignals, gc, showToast]);
 
   useEffect(() => {
     ensureFonts();
@@ -70,6 +165,8 @@ export default function App() {
         setCursor2Idx(null);
         setMetadata({});
         setSignalStyles({});
+        setDerivedConfigs({});
+        setDerivedPresetByGroup({});
         setRebaseOffset(0);
         setRebaseInput("");
         showToast(`Loaded default CSV: ${parsed.tagNames.length} tags`, "success");
@@ -88,7 +185,7 @@ export default function App() {
         setGroups(parsed.signals.map((_, i) => (i % MAX_GROUPS) + 1));
         setViewRange([0, parsed.timestamps.length]);
         setCursorIdx(null); setCursor2Idx(null);
-        setMetadata({}); setSignalStyles({}); setRebaseOffset(0); setRebaseInput("");
+        setMetadata({}); setSignalStyles({}); setDerivedConfigs({}); setDerivedPresetByGroup({}); setRebaseOffset(0); setRebaseInput("");
         showToast(`Loaded ${parsed.tagNames.length} tags, ${parsed.timestamps.length.toLocaleString()} samples`, "success");
       } else showToast("Failed to parse CSV — unsupported format", "error");
     };
@@ -137,6 +234,7 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: baseDash,
+          isAvg: !!signal.isDerived,
         });
       }
 
@@ -210,11 +308,11 @@ export default function App() {
 
   const saveProject = useCallback(() => {
     if (!data) return;
-    const project = { version: 2, data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal };
+    const project = { version: 3, data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
     const blob = new Blob([JSON.stringify(project)], { type: "application/json" });
     const filename = `${(data.meta.trendName || "project").replace(/\s+/g, "_")}.tracelab`;
     downloadBlob(blob, filename, () => showToast("Project saved", "success"));
-  }, [data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, showToast]);
+  }, [data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs, showToast]);
 
   const loadProject = useCallback((file) => {
     const reader = new FileReader();
@@ -232,6 +330,12 @@ export default function App() {
           else if (proj.isolated) setGroups(proj.isolated.map((iso, i) => iso ? (i % MAX_GROUPS) + 1 : 1));
           else setGroups(proj.data.signals.map((_, i) => (i % MAX_GROUPS) + 1));
           setMetadata(proj.metadata || {}); setGroupNames(proj.groupNames || {}); setSignalStyles(proj.signalStyles || {}); setViewRange(proj.viewRange || [0, proj.data.timestamps.length]);
+          const loadedDerived = proj.derivedConfigs || {};
+          setDerivedConfigs(loadedDerived);
+          setDerivedPresetByGroup({});
+          if (Object.keys(loadedDerived).length > 0) {
+            proj.data = recomputeDerivedSignals(proj.data, loadedDerived);
+          }
           setRebaseOffset(proj.rebaseOffset || 0); setDeltaMode(proj.deltaMode || false);
           if (proj.showPills !== undefined) setShowPills(proj.showPills);
           if (proj.showEdgeValues !== undefined) setShowEdgeValues(proj.showEdgeValues);
@@ -251,7 +355,7 @@ export default function App() {
       } catch { showToast("Failed to parse project file", "error"); }
     };
     reader.readAsText(file);
-  }, [showToast]);
+  }, [showToast, recomputeDerivedSignals]);
 
   const exportSnapshot = useCallback(() => {
     const traceCanvases = document.querySelectorAll('canvas[data-export="trace"]');
@@ -533,13 +637,34 @@ export default function App() {
                           <span style={{ fontSize: 12, fontWeight: 600, color: entry.color, fontFamily: FONT_MONO, whiteSpace: "nowrap" }}>{entry.displayName}{entry.unit && <span style={{ fontWeight: 400, opacity: 0.6 }}> [{entry.unit}]</span>}</span>
                         </span>
                       ))}
+                      <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                        <select
+                          value={derivedPresetByGroup[pane.groupIdx] || "equation"}
+                          onChange={(e) => setDerivedPresetByGroup(prev => ({ ...prev, [pane.groupIdx]: e.target.value }))}
+                          style={{ height: 20, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 4, color: t.text2, fontSize: 11, fontFamily: FONT_MONO }}
+                          title="Derived pen type"
+                        >
+                          <option value="equation">Equation</option>
+                          <option value="rolling_avg">Rolling Avg</option>
+                          <option value="difference">Difference</option>
+                          <option value="sum">Sum</option>
+                          <option value="ratio">Ratio</option>
+                        </select>
+                        <button
+                          onClick={() => createDerivedPen(pane.groupIdx, derivedPresetByGroup[pane.groupIdx] || "equation")}
+                          style={{ padding: "1px 6px", borderRadius: 4, border: `1px solid ${paneGc}66`, background: paneGc + "22", color: paneGc, fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, cursor: "pointer" }}
+                          title="Add derived pen to this chart"
+                        >
+                          + Derived
+                        </button>
+                      </span>
                       {/* Unified Y-range toggle — only useful with 2+ signals */}
                       {pane.entries.length > 1 && (
                         <span
                           onClick={() => setSplitRanges(prev => ({ ...prev, [pane.groupIdx]: !prev[pane.groupIdx] }))}
                           title={splitRanges[pane.groupIdx] ? "Unify Y-axis (shared range)" : "Split Y-axes (per signal)"}
                           style={{
-                            marginLeft: "auto", flexShrink: 0, cursor: "pointer",
+                            flexShrink: 0, cursor: "pointer",
                             fontSize: 13, fontWeight: 700, letterSpacing: 0.5,
                             padding: "1px 5px", borderRadius: 3,
                             fontFamily: FONT_DISPLAY,
