@@ -158,11 +158,29 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.fill(); ctx.globalAlpha = 1;
 
           // Pill bg
-          ctx.fillStyle = t.chart; ctx.globalAlpha = 0.85;
-          ctx.fillRect(bx, py, pw, edgePillH);
+          ctx.fillStyle = t.chart; ctx.globalAlpha = 0.88;
+          ctx.beginPath();
+          ctx.moveTo(bx + 4, py); ctx.lineTo(bx + pw - 4, py);
+          ctx.quadraticCurveTo(bx + pw, py, bx + pw, py + 4);
+          ctx.lineTo(bx + pw, py + edgePillH - 4);
+          ctx.quadraticCurveTo(bx + pw, py + edgePillH, bx + pw - 4, py + edgePillH);
+          ctx.lineTo(bx + 4, py + edgePillH);
+          ctx.quadraticCurveTo(bx, py + edgePillH, bx, py + edgePillH - 4);
+          ctx.lineTo(bx, py + 4);
+          ctx.quadraticCurveTo(bx, py, bx + 4, py);
+          ctx.fill();
           // Pill border
-          ctx.strokeStyle = p.color; ctx.globalAlpha = 0.35; ctx.lineWidth = 1;
-          ctx.strokeRect(bx, py, pw, edgePillH);
+          ctx.strokeStyle = p.color; ctx.globalAlpha = 0.4; ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(bx + 4, py); ctx.lineTo(bx + pw - 4, py);
+          ctx.quadraticCurveTo(bx + pw, py, bx + pw, py + 4);
+          ctx.lineTo(bx + pw, py + edgePillH - 4);
+          ctx.quadraticCurveTo(bx + pw, py + edgePillH, bx + pw - 4, py + edgePillH);
+          ctx.lineTo(bx + 4, py + edgePillH);
+          ctx.quadraticCurveTo(bx, py + edgePillH, bx, py + edgePillH - 4);
+          ctx.lineTo(bx, py + 4);
+          ctx.quadraticCurveTo(bx, py, bx + 4, py);
+          ctx.stroke();
           ctx.globalAlpha = 1;
           // Value text
           ctx.fillStyle = p.color; ctx.globalAlpha = 0.9;
@@ -376,10 +394,28 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
               const py = p._py;
               // Background
               ctx.fillStyle = t.chart; ctx.globalAlpha = 0.88;
-              ctx.fillRect(px, py, pw, pillH);
+              ctx.beginPath();
+              ctx.moveTo(px + 4, py); ctx.lineTo(px + pw - 4, py);
+              ctx.quadraticCurveTo(px + pw, py, px + pw, py + 4);
+              ctx.lineTo(px + pw, py + pillH - 4);
+              ctx.quadraticCurveTo(px + pw, py + pillH, px + pw - 4, py + pillH);
+              ctx.lineTo(px + 4, py + pillH);
+              ctx.quadraticCurveTo(px, py + pillH, px, py + pillH - 4);
+              ctx.lineTo(px, py + 4);
+              ctx.quadraticCurveTo(px, py, px + 4, py);
+              ctx.fill();
               // Border
               ctx.strokeStyle = p.color; ctx.globalAlpha = 0.4; ctx.lineWidth = 1;
-              ctx.strokeRect(px, py, pw, pillH); ctx.globalAlpha = 1;
+              ctx.beginPath();
+              ctx.moveTo(px + 4, py); ctx.lineTo(px + pw - 4, py);
+              ctx.quadraticCurveTo(px + pw, py, px + pw, py + 4);
+              ctx.lineTo(px + pw, py + pillH - 4);
+              ctx.quadraticCurveTo(px + pw, py + pillH, px + pw - 4, py + pillH);
+              ctx.lineTo(px + 4, py + pillH);
+              ctx.quadraticCurveTo(px, py + pillH, px, py + pillH - 4);
+              ctx.lineTo(px, py + 4);
+              ctx.quadraticCurveTo(px, py, px + 4, py);
+              ctx.stroke(); ctx.globalAlpha = 1;
               // Value text — centered in pill
               ctx.fillStyle = p.color; ctx.globalAlpha = 0.95;
               ctx.textAlign = "center";
