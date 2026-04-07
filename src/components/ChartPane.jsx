@@ -191,7 +191,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
               ctx.globalAlpha = 0.9;
               ctx.fillStyle = ov.color || t.warn;
               ctx.font = `bold 10px ${FONT_DISPLAY}`;
-              ctx.fillText(ov.label, Math.max(pad.left + 4, drawX + 4), pad.top + 11);
+              ctx.fillText(ov.label, Math.max(pad.left + 6, drawX + 8), pad.top + 16);
             }
             drawOverlayHandle(drawX, pad.top + 4, ov.color || t.warn);
             drawOverlayHandle(drawX + drawW, pad.top + 4, ov.color || t.warn);
@@ -212,7 +212,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             if (ov.label) {
               ctx.fillStyle = ov.color || t.warn;
               ctx.font = `bold 10px ${FONT_DISPLAY}`;
-              ctx.fillText(ov.label, Math.max(pad.left + 4, x + 4), pad.top + 11);
+              ctx.fillText(ov.label, Math.max(pad.left + 6, x + 8), pad.top + 16);
             }
             drawOverlayHandle(x, pad.top + 4, ov.color || t.warn);
           }
@@ -233,7 +233,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             ctx.globalAlpha = 0.9;
             ctx.fillStyle = ov.color || t.warn;
             ctx.font = `bold 10px ${FONT_DISPLAY}`;
-            ctx.fillText(ov.label, pad.left + 6, Math.max(pad.top + 11, y1 + 11));
+            ctx.fillText(ov.label, pad.left + 8, Math.max(pad.top + 14, y1 + 14));
           }
           drawOverlayHandle(pad.left + plotW - 4, y1, ov.color || t.warn);
           drawOverlayHandle(pad.left + plotW - 4, y2, ov.color || t.warn);
@@ -253,7 +253,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           if (ov.label) {
             ctx.fillStyle = ov.color || t.warn;
             ctx.font = `bold 10px ${FONT_DISPLAY}`;
-            ctx.fillText(ov.label, pad.left + 6, Math.max(pad.top + 10, y - 4));
+            ctx.fillText(ov.label, pad.left + 8, Math.max(pad.top + 14, y - 8));
           }
           drawOverlayHandle(pad.left + plotW - 4, y, ov.color || t.warn);
         }

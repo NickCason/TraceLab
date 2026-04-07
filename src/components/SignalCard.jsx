@@ -69,24 +69,27 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
         position: "relative", overflow: "visible",
       }}
     >
-      {/* Visibility toggle */}
-      <div onClick={(e) => { e.stopPropagation(); onToggleVisible(index); }} style={{
-        width: 12, height: 12, borderRadius: 3, flexShrink: 0, cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        border: `1.5px solid ${vis ? color : t.text4}`,
-        background: vis ? color + "33" : "transparent",
-        transition: "all 0.15s",
-      }} title={vis ? "Hide signal" : "Show signal"}>
-        {vis && <svg width="7" height="7" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-      </div>
-      {/* Color/style picker trigger */}
-      <div onClick={(e) => { e.stopPropagation(); setShowStylePicker(!showStylePicker); }} style={{
-        width: 12, height: 12, borderRadius: 2, flexShrink: 0, cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: vis ? color : t.text4,
-        boxShadow: vis ? `0 0 4px ${color}33` : "none", transition: "all 0.15s",
-      }} title="Signal settings">
-        <span style={{ fontSize: 11, lineHeight: "11px", fontWeight: 700 }}>⚙</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center", flexShrink: 0 }}>
+        {/* Visibility toggle */}
+        <div onClick={(e) => { e.stopPropagation(); onToggleVisible(index); }} style={{
+          width: 12, height: 12, borderRadius: 3, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: `1.5px solid ${vis ? color : t.text4}`,
+          background: vis ? color + "33" : "transparent",
+          transition: "all 0.15s",
+        }} title={vis ? "Hide signal" : "Show signal"}>
+          {vis && <svg width="7" height="7" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+        </div>
+        {/* Color/style picker trigger */}
+        <div onClick={(e) => { e.stopPropagation(); setShowStylePicker(!showStylePicker); }} style={{
+          width: 12, height: 12, borderRadius: 3, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: vis ? color : t.text4,
+          boxShadow: vis ? `0 0 4px ${color}33` : "none", transition: "all 0.15s",
+          border: `1px solid ${vis ? color + "55" : t.border}`,
+        }} title="Signal settings">
+          <span style={{ fontSize: 10, lineHeight: "10px", fontWeight: 700 }}>⚙</span>
+        </div>
       </div>
       <div onClick={(e) => { e.stopPropagation(); onToggleVisible(index); }} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
         <MarqueeText style={{ fontSize: 13, fontWeight: 600, color: vis ? t.text1 : t.text3, display: "flex", alignItems: "center", gap: 3 }}>

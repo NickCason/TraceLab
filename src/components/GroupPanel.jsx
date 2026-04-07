@@ -8,7 +8,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
   const t = THEMES[theme];
   const [dragOver, setDragOver] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [showOverlays] = useState(true);
+  const [showOverlays, setShowOverlays] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(label);
   const nameRef = useRef(null);
@@ -160,8 +160,8 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
       {!collapsed && !isEmpty && (
         <div style={{ padding: "2px 6px 6px" }}>
           <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
-            <div style={{ fontSize: 11, color: t.text3, fontWeight: 700, letterSpacing: 0.6, fontFamily: FONT_DISPLAY }}>
-              OVERLAYS <span style={{ color: t.text4, fontWeight: 500 }}>({referenceOverlays.length})</span>
+            <div onClick={() => setShowOverlays(v => !v)} style={{ fontSize: 11, color: t.text3, fontWeight: 700, letterSpacing: 0.6, fontFamily: FONT_DISPLAY, cursor: "pointer", userSelect: "none" }}>
+              OVERLAYS <span style={{ color: t.text4, fontWeight: 500 }}>({referenceOverlays.length})</span> {showOverlays ? "▾" : "▸"}
             </div>
           </div>
           {showOverlays && referenceOverlays.map((ov) => (
