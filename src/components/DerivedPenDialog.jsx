@@ -11,6 +11,8 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
   const [windowSize, setWindowSize] = useState(20);
   const [sourceA, setSourceA] = useState(0);
   const [sourceB, setSourceB] = useState(1);
+  const [absDiff, setAbsDiff] = useState(false);
+  const [unwrapDiff, setUnwrapDiff] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -23,6 +25,8 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
       setWindowSize(initialDraft.window ?? 20);
       setSourceA(initialDraft.sources?.[0] ?? 0);
       setSourceB(initialDraft.sources?.[1] ?? 1);
+      setAbsDiff(!!initialDraft.absDiff);
+      setUnwrapDiff(!!initialDraft.unwrapDiff);
       return;
     }
     setType(defaultType || "equation");
@@ -33,6 +37,8 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
     setWindowSize(20);
     setSourceA(0);
     setSourceB(1);
+    setAbsDiff(false);
+    setUnwrapDiff(false);
   }, [open, defaultType, defaultGroupIdx, initialDraft]);
 
   const variableLegend = useMemo(
@@ -71,6 +77,8 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
       source: parseInt(source, 10),
       window: parseInt(windowSize, 10),
       sources: [parseInt(sourceA, 10), parseInt(sourceB, 10)],
+      absDiff,
+      unwrapDiff,
     });
   };
 
@@ -89,6 +97,9 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
               <option value="difference">Difference</option>
               <option value="sum">Sum</option>
               <option value="ratio">Ratio</option>
+              <option value="product">Product</option>
+              <option value="min">Min(A,B)</option>
+              <option value="max">Max(A,B)</option>
             </select>
           </div>
           <div>
@@ -108,6 +119,10 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
             <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Equation (s0/s1 tokens + Math functions)</div>
             <textarea value={expression} onChange={(e) => setExpression(e.target.value)} rows={3} style={{ ...inputStyle, resize: "vertical", minHeight: 62 }} />
             <div style={{ fontSize: 11, color: t.text4, marginTop: 4, fontFamily: FONT_DISPLAY }}>Click variables below to insert tokens like <span style={{ fontFamily: FONT_MONO }}>s3</span>. Example: <span style={{ fontFamily: FONT_MONO }}>abs(s0 - s1)</span>.</div>
+            <div style={{ fontSize: 11, color: t.text4, marginTop: 4, fontFamily: FONT_DISPLAY }}>
+              Operators: <span style={{ fontFamily: FONT_MONO }}>+ - * / % ** ( )</span> · Functions:
+              <span style={{ fontFamily: FONT_MONO }}> abs, min, max, round, floor, ceil, sin, cos, tan, pow, sqrt, log, exp</span>
+            </div>
             {usedTokens.length > 0 && (
               <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {usedTokens.map(token => {
@@ -139,7 +154,7 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
           </div>
         )}
 
-        {(type === "difference" || type === "sum" || type === "ratio") && (
+        {(type === "difference" || type === "sum" || type === "ratio" || type === "product" || type === "min" || type === "max") && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
             <div>
               <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Source A</div>
@@ -153,6 +168,18 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
                 {signals.map((_, i) => <option key={i} value={i}>{`s${i} — ${getDisplayName(i)}`}</option>)}
               </select>
             </div>
+            {type === "difference" && (
+              <div style={{ gridColumn: "1 / span 2", display: "flex", gap: 14, alignItems: "center", marginTop: 2 }}>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: t.text2, fontFamily: FONT_DISPLAY }}>
+                  <input type="checkbox" checked={absDiff} onChange={(e) => setAbsDiff(e.target.checked)} />
+                  Absolute result (|A-B|)
+                </label>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: t.text2, fontFamily: FONT_DISPLAY }}>
+                  <input type="checkbox" checked={unwrapDiff} onChange={(e) => setUnwrapDiff(e.target.checked)} />
+                  Observe rollovers (unwrap cyclic delta)
+                </label>
+              </div>
+            )}
           </div>
         )}
 

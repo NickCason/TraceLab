@@ -15,6 +15,7 @@ import { computeStats } from "./utils/stats";
 import { downloadBlob } from "./utils/download";
 import { ensureFonts } from "./utils/fonts";
 import { buildEquationEvaluator } from "./utils/derivedEquation";
+import { clampSeamPercent, hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./utils/seamAdjustment";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
 
@@ -47,7 +48,7 @@ function remapDerivedConfig(cfg, removedIdx) {
     const source = remapSignalIndex(cfg.source ?? 0, removedIdx);
     return source === null ? { ...cfg, source: 0, invalidRef: true } : { ...cfg, source };
   }
-  if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio") {
+  if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio" || cfg.type === "product" || cfg.type === "min" || cfg.type === "max") {
     const [a = 0, b = 1] = cfg.sources || [];
     const sourceA = remapSignalIndex(a, removedIdx);
     const sourceB = remapSignalIndex(b, removedIdx);
@@ -56,6 +57,16 @@ function remapDerivedConfig(cfg, removedIdx) {
   }
   if (cfg.type === "equation") return { ...cfg, expression: remapEquationExpression(cfg.expression, removedIdx) };
   return cfg;
+}
+
+function resolveSignalSeam(styleCfg, values) {
+  const domain = inferSeamDomain(values);
+  const percent = styleCfg?.seamOffsetPct !== undefined
+    ? Number(styleCfg.seamOffsetPct) || 0
+    : seamOffsetToPercent(styleCfg?.seamOffset || 0, domain.span);
+  const boundedPercent = clampSeamPercent(percent);
+  const offset = seamPercentToOffset(boundedPercent, domain.span);
+  return { ...domain, percent: boundedPercent, offset, active: hasSeamAdjustment({ offset }) };
 }
 
 export default function App() {
@@ -118,14 +129,27 @@ export default function App() {
             out[i] = sum / buf.length;
           } else out[i] = buf.length ? sum / buf.length : null;
         }
-      } else if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio") {
+      } else if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio" || cfg.type === "product" || cfg.type === "min" || cfg.type === "max") {
         const [aIdx, bIdx] = cfg.sources || [];
+        const domainA = inferSeamDomain(signals[aIdx]?.values || []);
+        const domainB = inferSeamDomain(signals[bIdx]?.values || []);
+        const rolloverSpan = Math.max(domainA.span || 0, domainB.span || 0, 0);
         for (let i = 0; i < out.length; i++) {
           const a = getAt(aIdx, i), b = getAt(bIdx, i);
           if (a === null || b === null) continue;
-          if (cfg.type === "difference") out[i] = a - b;
+          if (cfg.type === "difference") {
+            let diff = a - b;
+            if (cfg.unwrapDiff && rolloverSpan > 0) {
+              const half = rolloverSpan / 2;
+              diff = ((diff + half) % rolloverSpan + rolloverSpan) % rolloverSpan - half;
+            }
+            out[i] = cfg.absDiff ? Math.abs(diff) : diff;
+          }
           else if (cfg.type === "sum") out[i] = a + b;
-          else out[i] = Math.abs(b) < 1e-12 ? null : a / b;
+          else if (cfg.type === "ratio") out[i] = Math.abs(b) < 1e-12 ? null : a / b;
+          else if (cfg.type === "product") out[i] = a * b;
+          else if (cfg.type === "min") out[i] = Math.min(a, b);
+          else if (cfg.type === "max") out[i] = Math.max(a, b);
         }
       } else if (cfg.type === "equation") {
         try {
@@ -147,7 +171,9 @@ export default function App() {
     const type = draft.type || "equation";
     if (type === "equation") return { type: "equation", expression: draft.expression || "s0 - s1" };
     if (type === "rolling_avg") return { type: "rolling_avg", source: parseInt(draft.source, 10) || 0, window: Math.max(2, parseInt(draft.window, 10) || 20) };
-    return { type, sources: [parseInt(draft.sources?.[0], 10) || 0, parseInt(draft.sources?.[1], 10) || 1] };
+    const base = { type, sources: [parseInt(draft.sources?.[0], 10) || 0, parseInt(draft.sources?.[1], 10) || 1] };
+    if (type === "difference") return { ...base, absDiff: !!draft.absDiff, unwrapDiff: !!draft.unwrapDiff };
+    return base;
   }, []);
 
   const createDerivedPen = useCallback((draft) => {
@@ -158,6 +184,7 @@ export default function App() {
 
     const friendly = type === "rolling_avg" ? `RollingAvg(s${cfg.source}, ${cfg.window})` :
       type === "equation" ? `Eq: ${cfg.expression}` :
+      type === "difference" ? `diff(${(cfg.sources || []).map(s => `s${s}`).join(", ")})${cfg.absDiff ? " abs" : ""}${cfg.unwrapDiff ? " unwrap" : ""}` :
       `${type}(${(cfg.sources || []).map(s => `s${s}`).join(", ")})`;
     const baseName = (draft.name || "").trim() || friendly;
 
@@ -312,6 +339,7 @@ export default function App() {
       if (!paneMap.has(g)) paneMap.set(g, []);
       const baseColor = signalStyles[i]?.color || sc[i % sc.length];
       const baseDash = signalStyles[i]?.dash || "solid";
+      const seamCfg = resolveSignalSeam(signalStyles[i], signal.values);
 
       // Original signal entry (unless hidden by hideOriginal)
       if (!hideOriginal[i]) {
@@ -320,6 +348,7 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: baseDash,
+          seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
           isAvg: !!signal.isDerived,
         });
       }
@@ -351,6 +380,7 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: "dashed",
+          seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
           isAvg: true,
           parentIndex: i,
         });
@@ -386,6 +416,25 @@ export default function App() {
     return maxW;
   }, [showEdgeValues, data, viewRange, chartPanes]);
 
+  const globalLeftEdgeLabelWidth = useMemo(() => {
+    if (!showEdgeValues || !data) return 0;
+    const [start, end] = viewRange;
+    let maxW = 0;
+    chartPanes.forEach(pane => {
+      pane.entries.forEach(({ signal, unit, isAvg }) => {
+        for (let i = start; i < end; i++) {
+          if (signal.values[i] !== null) {
+            const prefix = isAvg ? "x̄ " : "";
+            const str = prefix + signal.values[i].toFixed(2) + (unit ? " " + unit : "");
+            maxW = Math.max(maxW, str.length * 6.5 + 14);
+            break;
+          }
+        }
+      });
+    });
+    return maxW;
+  }, [showEdgeValues, data, viewRange, chartPanes]);
+
   const applyRebase = useCallback(() => {
     if (!data || !rebaseInput.trim()) return;
     try { const target = new Date(rebaseInput.trim()); if (isNaN(target.getTime())) { showToast("Invalid date format", "error"); return; } setRebaseOffset(target.getTime() - data.timestamps[0]); showToast(`Rebased: start → ${fmtTsClean(target.getTime())}`, "success"); } catch { showToast("Invalid date format", "error"); }
@@ -394,7 +443,7 @@ export default function App() {
 
   const saveProject = useCallback(() => {
     if (!data) return;
-    const project = { version: 3, data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
+    const project = { version: 4, data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
     const blob = new Blob([JSON.stringify(project)], { type: "application/json" });
     const filename = `${(data.meta.trendName || "project").replace(/\s+/g, "_")}.tracelab`;
     downloadBlob(blob, filename, () => showToast("Project saved", "success"));
@@ -618,6 +667,8 @@ export default function App() {
                             source: cfg.source ?? 0,
                             window: cfg.window ?? 20,
                             sources: cfg.sources || [0, 1],
+                            absDiff: !!cfg.absDiff,
+                            unwrapDiff: !!cfg.unwrapDiff,
                           },
                         });
                       }}
@@ -628,8 +679,10 @@ export default function App() {
                         const next = { ...cur };
                         if (updates.color !== undefined) next.color = updates.color;
                         if (updates.dash !== undefined) next.dash = updates.dash;
+                        if (updates.seamOffset !== undefined) next.seamOffset = updates.seamOffset;
+                        if (updates.seamOffsetPct !== undefined) next.seamOffsetPct = updates.seamOffsetPct;
                         // If both null, remove override entirely
-                        if (!next.color && !next.dash) { const n = { ...prev }; delete n[idx]; return n; }
+                        if (!next.color && !next.dash && !next.seamOffset && !next.seamOffsetPct) { const n = { ...prev }; delete n[idx]; return n; }
                         return { ...prev, [idx]: next };
                       })}
                       theme={theme}
@@ -778,7 +831,7 @@ export default function App() {
                       showTimeAxis={pi === chartPanes.length - 1} label={paneGc ? null : pane.label} compact={chartPanes.length > 2}
                       theme={theme} rebaseOffset={rebaseOffset}
                       groupColor={paneGc} showPills={showPills} showEdgeValues={showEdgeValues} unifyRange={!splitRanges[pane.groupIdx]}
-                      deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} showExtrema={showExtrema} />
+                      deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} globalLeftEdgeLabelWidth={globalLeftEdgeLabelWidth} showExtrema={showExtrema} />
                   </div>
                 </div>
               );

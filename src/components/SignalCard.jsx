@@ -2,8 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import Sparkline from "./Sparkline";
 import MarqueeText from "./MarqueeText";
+import { clampSeamPercent, inferSeamDomain, seamOffsetToPercent, snapSeamPercent } from "../utils/seamAdjustment";
 
-export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
+export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, seamOffsetPct, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
   const t = THEMES[theme];
   const hasCustomName = displayName !== tagName;
   const [showStylePicker, setShowStylePicker] = useState(false);
@@ -42,11 +43,21 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
     { value: "samples", label: "• • •", desc: "Samples Only" },
   ];
   const PALETTE = ["#7c8cf5","#f87171","#34d399","#f0b866","#a78bfa","#f472b6","#38bdf8","#fb923c","#a3e635","#818cf8","#2dd4bf","#f43f5e","#22d3ee","#84cc16","#f59e0b","#e879f9","#06b6d4","#10b981","#ef4444","#c084fc","#14b8a6","#f97316","#60a5fa","#eab308","#e8e4df","#9d97a0"];
+  const seamDomain = inferSeamDomain(signal.values);
+  const effectiveSeamPct = seamOffsetPct !== undefined ? clampSeamPercent(seamOffsetPct) : seamOffsetToPercent(seamOffset, seamDomain.span);
 
   return (
     <div
-      draggable
-      onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(index)); e.dataTransfer.effectAllowed = "move"; }}
+      draggable={!showStylePicker}
+      onDragStart={(e) => {
+        const interactive = e.target.closest?.("input, button, select, textarea");
+        if (interactive || showStylePicker) {
+          e.preventDefault();
+          return;
+        }
+        e.dataTransfer.setData("text/plain", String(index));
+        e.dataTransfer.effectAllowed = "move";
+      }}
       style={{
         display: "flex", alignItems: "center", gap: 5, padding: "5px 7px", borderRadius: 8, marginBottom: 2,
         background: vis ? t.surface : "transparent",
@@ -87,7 +98,6 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
         {cursorValue !== undefined && cursorValue !== null && vis && (
           <div style={{ fontSize: 13, color: color, marginTop: 1, fontFamily: FONT_MONO }}>
             {cursorValue?.toFixed(3) ?? "—"}{unit ? ` ${unit}` : ""}
-            {deltaMode && cursor2Value !== undefined && <span style={{ color: THEMES[theme].cursor2, marginLeft: 5, fontSize: 8 }}>Δ {cursor2Value !== null && cursorValue !== null ? (cursor2Value - cursorValue).toFixed(3) : "—"}{unit ? ` ${unit}` : ""}</span>}
           </div>
         )}
       </div>
@@ -125,9 +135,43 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
               }}>{d.label}</button>
             ))}
           </div>
-          <div onClick={() => { onStyleChange(index, { color: null, dash: null }); setShowStylePicker(false); }} style={{
+          <div onClick={() => { onStyleChange(index, { color: null, dash: null, seamOffset: 0, seamOffsetPct: 0 }); setShowStylePicker(false); }} style={{
             marginTop: 6, fontSize: 12, color: t.text4, cursor: "pointer", textAlign: "center", fontFamily: FONT_DISPLAY,
           }}>Reset to default</div>
+          {!isDigital && (
+            <div style={{ marginTop: 8, paddingTop: 6, borderTop: `1px solid ${t.border}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12, color: t.text3, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT_DISPLAY }}>
+                <span>Seam Shift</span>
+                <span style={{ fontFamily: FONT_MONO, letterSpacing: 0, textTransform: "none", color: t.text2 }}>{effectiveSeamPct > 0 ? "+" : ""}{effectiveSeamPct.toFixed(2).replace(/\.00$/, "")}%</span>
+              </div>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                step="5"
+                value={snapSeamPercent(effectiveSeamPct, 5)}
+                onChange={(e) => onStyleChange(index, { seamOffsetPct: snapSeamPercent(parseFloat(e.target.value) || 0, 5) })}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                style={{ width: "100%" }}
+                title="Virtual seam shift (-100% to +100%)"
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+                <input
+                  type="number"
+                  min="-100"
+                  max="100"
+                  step="0.01"
+                  value={effectiveSeamPct}
+                  onChange={(e) => onStyleChange(index, { seamOffsetPct: clampSeamPercent(parseFloat(e.target.value) || 0) })}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  style={{ width: 64, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 6, padding: "2px 6px", color: t.text1, fontSize: 12, fontFamily: FONT_MONO }}
+                />
+                <span style={{ fontSize: 11, color: t.text4, fontFamily: FONT_DISPLAY }}>typed: fine</span>
+              </div>
+            </div>
+          )}
           {isDerived && (
             <>
               <button
