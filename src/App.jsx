@@ -800,6 +800,7 @@ export default function App() {
         defaultType={derivedDialog.type}
         initialDraft={derivedDialog.initialDraft}
         getDisplayName={getDisplayName}
+        getGroupLabel={getGroupLabel}
         onCancel={() => setDerivedDialog(prev => ({ ...prev, open: false, editIdx: null, initialDraft: null }))}
         onCreate={(draft) => {
           if (derivedDialog.mode === "edit" && derivedDialog.editIdx !== null) updateDerivedPen(derivedDialog.editIdx, draft);
