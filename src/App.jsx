@@ -14,6 +14,7 @@ import { fmtDate, fmtDateISO, fmtTime, fmtTsClean } from "./utils/date";
 import { computeStats } from "./utils/stats";
 import { downloadBlob } from "./utils/download";
 import { ensureFonts } from "./utils/fonts";
+import { buildEquationEvaluator } from "./utils/derivedEquation";
 
 export default function App() {
   const [data, setData] = useState(null);
@@ -86,11 +87,10 @@ export default function App() {
         }
       } else if (cfg.type === "equation") {
         try {
-          // Equation can reference signals as s0, s1, ... (base or derived)
-          const fn = new Function("s", "Math", `with (Math) { return ${cfg.expression}; }`);
+          // Equation supports tokens like s0, s1, ... and Math functions.
+          const evaluate = buildEquationEvaluator(cfg.expression);
           for (let i = 0; i < out.length; i++) {
-            const val = fn((sigIdx) => getAt(sigIdx, i), Math);
-            out[i] = (typeof val === "number" && Number.isFinite(val)) ? val : null;
+            out[i] = evaluate(i, getAt);
           }
         } catch {
           // keep nulls
