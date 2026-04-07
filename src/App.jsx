@@ -14,6 +14,49 @@ import { fmtDate, fmtDateISO, fmtTime, fmtTsClean } from "./utils/date";
 import { computeStats } from "./utils/stats";
 import { downloadBlob } from "./utils/download";
 import { ensureFonts } from "./utils/fonts";
+import { buildEquationEvaluator } from "./utils/derivedEquation";
+
+const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
+
+function remapSignalIndex(sigIdx, removedIdx) {
+  if (sigIdx === removedIdx) return null;
+  if (sigIdx > removedIdx) return sigIdx - 1;
+  return sigIdx;
+}
+
+function shiftIndexedMap(mapObj, removedIdx) {
+  const next = {};
+  Object.entries(mapObj || {}).forEach(([k, v]) => {
+    const idx = parseInt(k, 10);
+    if (Number.isNaN(idx) || idx === removedIdx) return;
+    next[idx > removedIdx ? idx - 1 : idx] = v;
+  });
+  return next;
+}
+
+function remapEquationExpression(expression, removedIdx) {
+  return (expression || "").replace(SIGNAL_TOKEN_PATTERN, (_, rawIdx) => {
+    const mapped = remapSignalIndex(parseInt(rawIdx, 10), removedIdx);
+    return mapped === null ? "NaN" : `s${mapped}`;
+  });
+}
+
+function remapDerivedConfig(cfg, removedIdx) {
+  if (!cfg) return cfg;
+  if (cfg.type === "rolling_avg") {
+    const source = remapSignalIndex(cfg.source ?? 0, removedIdx);
+    return source === null ? { ...cfg, source: 0, invalidRef: true } : { ...cfg, source };
+  }
+  if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio") {
+    const [a = 0, b = 1] = cfg.sources || [];
+    const sourceA = remapSignalIndex(a, removedIdx);
+    const sourceB = remapSignalIndex(b, removedIdx);
+    if (sourceA === null || sourceB === null) return { ...cfg, sources: [0, 1], invalidRef: true };
+    return { ...cfg, sources: [sourceA, sourceB] };
+  }
+  if (cfg.type === "equation") return { ...cfg, expression: remapEquationExpression(cfg.expression, removedIdx) };
+  return cfg;
+}
 
 export default function App() {
   const [data, setData] = useState(null);
@@ -31,7 +74,6 @@ export default function App() {
   const [avgWindow, setAvgWindow] = useState({}); // { [signalIdx]: number } — moving average window size (0 = off)
   const [hideOriginal, setHideOriginal] = useState({}); // { [signalIdx]: true } — hide original when avg shown
   const [derivedConfigs, setDerivedConfigs] = useState({}); // { [signalIdx]: { type, ...params } }
-  const [derivedPresetByGroup, setDerivedPresetByGroup] = useState({}); // { [groupIdx]: "equation" | "rolling_avg" | ... }
   const [derivedDialog, setDerivedDialog] = useState({ open: false, mode: "create", groupIdx: 1, type: "equation", editIdx: null, initialDraft: null });
   const [viewRange, setViewRange] = useState([0, 0]);
   const [activePanel, setActivePanel] = useState("signals");
@@ -86,11 +128,10 @@ export default function App() {
         }
       } else if (cfg.type === "equation") {
         try {
-          // Equation can reference signals as s0, s1, ... (base or derived)
-          const fn = new Function("s", "Math", `with (Math) { return ${cfg.expression}; }`);
+          // Equation supports tokens like s0, s1, ... and Math functions.
+          const evaluate = buildEquationEvaluator(cfg.expression);
           for (let i = 0; i < out.length; i++) {
-            const val = fn((sigIdx) => getAt(sigIdx, i), Math);
-            out[i] = (typeof val === "number" && Number.isFinite(val)) ? val : null;
+            out[i] = evaluate(i, getAt);
           }
         } catch {
           // keep nulls
@@ -155,6 +196,37 @@ export default function App() {
     showToast(`Derived pen updated`, "success");
   }, [data, derivedConfigs, groups, recomputeDerivedSignals, showToast, toDerivedCfg]);
 
+  const deleteDerivedPen = useCallback((idx) => {
+    if (!data || !data.signals[idx]?.isDerived) return;
+    const deletedName = metadata[idx]?.displayName || data.tagNames[idx] || `Derived ${idx}`;
+
+    const nextBaseData = {
+      ...data,
+      tagNames: data.tagNames.filter((_, i) => i !== idx),
+      signals: data.signals.filter((_, i) => i !== idx),
+    };
+
+    const nextDerivedCfgs = {};
+    Object.entries(derivedConfigs || {}).forEach(([k, cfg]) => {
+      const oldIdx = parseInt(k, 10);
+      if (Number.isNaN(oldIdx) || oldIdx === idx) return;
+      const newIdx = oldIdx > idx ? oldIdx - 1 : oldIdx;
+      nextDerivedCfgs[newIdx] = remapDerivedConfig(cfg, idx);
+    });
+
+    const recomputed = recomputeDerivedSignals(nextBaseData, nextDerivedCfgs);
+    setData(recomputed);
+    setDerivedConfigs(nextDerivedCfgs);
+    setVisible((prev) => prev.filter((_, i) => i !== idx));
+    setGroups((prev) => prev.filter((_, i) => i !== idx));
+    setMetadata((prev) => shiftIndexedMap(prev, idx));
+    setSignalStyles((prev) => shiftIndexedMap(prev, idx));
+    setAvgWindow((prev) => shiftIndexedMap(prev, idx));
+    setHideOriginal((prev) => shiftIndexedMap(prev, idx));
+    setDerivedDialog((prev) => (prev.editIdx === idx ? { ...prev, open: false, editIdx: null, initialDraft: null } : prev));
+    showToast(`Deleted derived pen: ${deletedName}`, "success");
+  }, [data, derivedConfigs, metadata, recomputeDerivedSignals, showToast]);
+
   useEffect(() => {
     ensureFonts();
   }, []);
@@ -180,7 +252,6 @@ export default function App() {
         setMetadata({});
         setSignalStyles({});
         setDerivedConfigs({});
-        setDerivedPresetByGroup({});
         setRebaseOffset(0);
         setRebaseInput("");
         showToast(`Loaded default CSV: ${parsed.tagNames.length} tags`, "success");
@@ -199,7 +270,7 @@ export default function App() {
         setGroups(parsed.signals.map((_, i) => (i % MAX_GROUPS) + 1));
         setViewRange([0, parsed.timestamps.length]);
         setCursorIdx(null); setCursor2Idx(null);
-        setMetadata({}); setSignalStyles({}); setDerivedConfigs({}); setDerivedPresetByGroup({}); setRebaseOffset(0); setRebaseInput("");
+        setMetadata({}); setSignalStyles({}); setDerivedConfigs({}); setRebaseOffset(0); setRebaseInput("");
         showToast(`Loaded ${parsed.tagNames.length} tags, ${parsed.timestamps.length.toLocaleString()} samples`, "success");
       } else showToast("Failed to parse CSV — unsupported format", "error");
     };
@@ -346,7 +417,6 @@ export default function App() {
           setMetadata(proj.metadata || {}); setGroupNames(proj.groupNames || {}); setSignalStyles(proj.signalStyles || {}); setViewRange(proj.viewRange || [0, proj.data.timestamps.length]);
           const loadedDerived = proj.derivedConfigs || {};
           setDerivedConfigs(loadedDerived);
-          setDerivedPresetByGroup({});
           if (Object.keys(loadedDerived).length > 0) {
             proj.data = recomputeDerivedSignals(proj.data, loadedDerived);
           }
@@ -549,6 +619,7 @@ export default function App() {
                           },
                         });
                       }}
+                      onDeleteDerived={deleteDerivedPen}
                       onSetGroupName={(g, name) => setGroupNames(prev => { const n = { ...prev }; if (name) n[g] = name; else delete n[g]; return n; })}
                       onStyleChange={(idx, updates) => setSignalStyles(prev => {
                         const cur = prev[idx] || {};
@@ -601,7 +672,7 @@ export default function App() {
                     <select
                       value=""
                       onChange={e => { if (e.target.value) setMetadata(prev => ({ ...prev, [i]: { ...prev[i], unit: e.target.value } })); }}
-                      style={{ width: 36, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 8, color: t.text2, fontSize: 12, fontFamily: FONT_MONO, cursor: "pointer", outline: "none", padding: "0 4px", appearance: "none", textAlign: "center" }}
+                      style={{ width: 36, background: t.panel, border: `1px solid ${t.inputBorder}`, borderRadius: 8, color: t.text1, fontSize: 12, fontFamily: FONT_MONO, fontWeight: 700, cursor: "pointer", outline: "none", padding: "0 4px", appearance: "none", textAlign: "center" }}
                       title="Insert unit symbol"
                     >
                       <option value="" disabled>⌄</option>
@@ -669,20 +740,8 @@ export default function App() {
                         </span>
                       ))}
                       <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                        <select
-                          value={derivedPresetByGroup[pane.groupIdx] || "equation"}
-                          onChange={(e) => setDerivedPresetByGroup(prev => ({ ...prev, [pane.groupIdx]: e.target.value }))}
-                          style={{ height: 20, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 4, color: t.text2, fontSize: 11, fontFamily: FONT_MONO }}
-                          title="Derived pen type"
-                        >
-                          <option value="equation">Equation</option>
-                          <option value="rolling_avg">Rolling Avg</option>
-                          <option value="difference">Difference</option>
-                          <option value="sum">Sum</option>
-                          <option value="ratio">Ratio</option>
-                        </select>
                         <button
-                          onClick={() => setDerivedDialog({ open: true, mode: "create", groupIdx: pane.groupIdx, type: derivedPresetByGroup[pane.groupIdx] || "equation", editIdx: null, initialDraft: null })}
+                          onClick={() => setDerivedDialog({ open: true, mode: "create", groupIdx: pane.groupIdx, type: "equation", editIdx: null, initialDraft: null })}
                           style={{ padding: "1px 6px", borderRadius: 4, border: `1px solid ${paneGc}66`, background: paneGc + "22", color: paneGc, fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, cursor: "pointer" }}
                           title="Add derived pen to this chart"
                         >
