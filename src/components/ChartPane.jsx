@@ -17,8 +17,8 @@ function buildDeltaCursor(label, color, isDark) {
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 12 12, crosshair`;
 }
 
-export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth, globalLeftEdgeLabelWidth, showExtrema = false }) {
-  const traceRef = useRef(null), cursorRef = useRef(null), containerRef = useRef(null), panStart = useRef(null), rafPending = useRef(null), pendingIdx = useRef(null);
+export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, referenceOverlays = [], onOverlayChange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth, globalLeftEdgeLabelWidth, showExtrema = false }) {
+  const traceRef = useRef(null), cursorRef = useRef(null), containerRef = useRef(null), panStart = useRef(null), rafPending = useRef(null), pendingIdx = useRef(null), overlayDragRef = useRef(null);
   const [start, end] = viewRange; const t = THEMES[theme];
   const getPlotValue = useCallback((entry, idx) => {
     const raw = entry.signal.values[idx];
@@ -161,28 +161,131 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       placedExtrema.push(finalBox);
       return fallback;
     };
+    const overlayYRange = unifyRange && yRanges.length ? yRanges[0] : null;
+    if (referenceOverlays?.length) {
+      const drawOverlayHandle = (hx, hy, color) => {
+        ctx.fillStyle = t.chart; ctx.globalAlpha = 0.95;
+        ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = color || t.warn; ctx.globalAlpha = 0.95; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.stroke();
+      };
+      referenceOverlays.forEach((ov) => {
+        if (!ov || ov.visible === false) return;
+        const [yMin, yMax] = overlayYRange || yRanges[0] || [0, 1];
+        const yR = yMax - yMin || 1;
+        if (ov.axis === "x") {
+          if (ov.type === "band") {
+            const s1 = Number(ov.sample);
+            const s2 = Number(ov.sampleEnd);
+            if (!Number.isFinite(s1) || !Number.isFinite(s2) || sc <= 0) return;
+            const low = Math.min(s1, s2), high = Math.max(s1, s2);
+            const x1 = pad.left + ((low - start) / sc) * plotW;
+            const x2 = pad.left + ((high - start) / sc) * plotW;
+            if (x2 < pad.left || x1 > pad.left + plotW) return;
+            const drawX = Math.max(pad.left, x1);
+            const drawW = Math.max(1, Math.min(pad.left + plotW, x2) - drawX);
+            ctx.fillStyle = ov.color || t.warn;
+            ctx.globalAlpha = Math.max(0, Math.min(1, Number(ov.opacity) || 0.2));
+            ctx.fillRect(drawX, pad.top, drawW, plotH);
+            if (ov.label) {
+              ctx.globalAlpha = 0.9;
+              ctx.fillStyle = ov.color || t.warn;
+              ctx.font = `bold 10px ${FONT_DISPLAY}`;
+              ctx.fillText(ov.label, Math.max(pad.left + 4, drawX + 4), pad.top + 11);
+            }
+            drawOverlayHandle(drawX, pad.top + 4, ov.color || t.warn);
+            drawOverlayHandle(drawX + drawW, pad.top + 4, ov.color || t.warn);
+          } else {
+            const s = Number(ov.sample);
+            if (!Number.isFinite(s) || sc <= 0) return;
+            const x = pad.left + ((s - start) / sc) * plotW;
+            if (x < pad.left || x > pad.left + plotW) return;
+            ctx.strokeStyle = ov.color || t.warn;
+            ctx.globalAlpha = 0.9;
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash(ov.dashed ? [6, 4] : []);
+            ctx.beginPath();
+            ctx.moveTo(x, pad.top);
+            ctx.lineTo(x, pad.top + plotH);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (ov.label) {
+              ctx.fillStyle = ov.color || t.warn;
+              ctx.font = `bold 10px ${FONT_DISPLAY}`;
+              ctx.fillText(ov.label, Math.max(pad.left + 4, x + 4), pad.top + 11);
+            }
+            drawOverlayHandle(x, pad.top + 4, ov.color || t.warn);
+          }
+          ctx.globalAlpha = 1;
+          return;
+        }
+        if (ov.type === "band") {
+          const bMin = Number(ov.min);
+          const bMax = Number(ov.max);
+          if (!Number.isFinite(bMin) || !Number.isFinite(bMax)) return;
+          const low = Math.min(bMin, bMax), high = Math.max(bMin, bMax);
+          const y1 = pad.top + plotH - ((high - yMin) / yR) * plotH;
+          const y2 = pad.top + plotH - ((low - yMin) / yR) * plotH;
+          ctx.fillStyle = ov.color || t.warn;
+          ctx.globalAlpha = Math.max(0, Math.min(1, Number(ov.opacity) || 0.2));
+          ctx.fillRect(pad.left, Math.max(pad.top, y1), plotW, Math.min(plotH, y2 - y1));
+          if (ov.label) {
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = ov.color || t.warn;
+            ctx.font = `bold 10px ${FONT_DISPLAY}`;
+            ctx.fillText(ov.label, pad.left + 6, Math.max(pad.top + 11, y1 + 11));
+          }
+          drawOverlayHandle(pad.left + plotW - 4, y1, ov.color || t.warn);
+          drawOverlayHandle(pad.left + plotW - 4, y2, ov.color || t.warn);
+        } else if (ov.type === "line") {
+          const val = Number(ov.value);
+          if (!Number.isFinite(val)) return;
+          const y = pad.top + plotH - ((val - yMin) / yR) * plotH;
+          ctx.strokeStyle = ov.color || t.warn;
+          ctx.globalAlpha = 0.9;
+          ctx.lineWidth = 1.2;
+          ctx.setLineDash(ov.dashed ? [6, 4] : []);
+          ctx.beginPath();
+          ctx.moveTo(pad.left, y);
+          ctx.lineTo(pad.left + plotW, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          if (ov.label) {
+            ctx.fillStyle = ov.color || t.warn;
+            ctx.font = `bold 10px ${FONT_DISPLAY}`;
+            ctx.fillText(ov.label, pad.left + 6, Math.max(pad.top + 10, y - 4));
+          }
+          drawOverlayHandle(pad.left + plotW - 4, y, ov.color || t.warn);
+        }
+        ctx.globalAlpha = 1;
+      });
+    }
+
     signalEntries.forEach((entry, si) => {
-      const { signal, color, dash } = entry;
+      const { signal, color, dash, strokeMode, thickness, opacity } = entry;
       const [yMin, yMax] = yRanges[si]; const yR = yMax - yMin;
       let minV = Infinity, maxV = -Infinity, minIdx = -1, maxIdx = -1;
-      ctx.strokeStyle = color; ctx.lineWidth = signal.isDigital ? 2 : 1.5; ctx.globalAlpha = 0.9;
-      if (dash === "dashed") ctx.setLineDash([6, 4]);
-      else if (dash === "dotted") ctx.setLineDash([2, 3]);
-      else if (dash === "long_dash") ctx.setLineDash([12, 6]);
-      else if (dash === "dash_dot") ctx.setLineDash([10, 4, 2, 4]);
-      else if (dash === "dash_dot_dot") ctx.setLineDash([10, 4, 2, 3, 2, 4]);
+      const activeMode = strokeMode || dash || "solid";
+      const strokePx = Math.max(0.8, Number(thickness) || (signal.isDigital ? 2 : 1.5));
+      const strokeAlpha = Math.max(0.1, Math.min(1, Number(opacity) || 0.9));
+      ctx.strokeStyle = color; ctx.lineWidth = strokePx; ctx.globalAlpha = strokeAlpha;
+      if (activeMode === "dashed") ctx.setLineDash([6, 4]);
+      else if (activeMode === "dotted") ctx.setLineDash([2, 3]);
+      else if (activeMode === "long_dash") ctx.setLineDash([12, 6]);
+      else if (activeMode === "dash_dot") ctx.setLineDash([10, 4, 2, 4]);
+      else if (activeMode === "dash_dot_dot") ctx.setLineDash([10, 4, 2, 3, 2, 4]);
       else ctx.setLineDash([]);
 
-      if (dash === "samples") {
+      if (activeMode === "samples") {
         for (let i = start; i < end; i += stride) {
           const v = getPlotValue(entry, i); if (v === null) continue;
           if (v < minV) { minV = v; minIdx = i; }
           if (v > maxV) { maxV = v; maxIdx = i; }
           const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
           ctx.beginPath();
-          ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+          ctx.arc(x, y, Math.max(1.4, strokePx * 0.95), 0, Math.PI * 2);
           ctx.fillStyle = color;
-          ctx.globalAlpha = 0.92;
+          ctx.globalAlpha = strokeAlpha;
           ctx.fill();
         }
       } else {
@@ -197,6 +300,18 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
+        if (activeMode === "hybrid_line_points") {
+          const markerStride = Math.max(stride, Math.floor((end - start) / Math.max(30, plotW / 10)));
+          ctx.fillStyle = color;
+          ctx.globalAlpha = Math.min(1, strokeAlpha + 0.05);
+          for (let i = start; i < end; i += markerStride) {
+            const v = getPlotValue(entry, i); if (v === null) continue;
+            const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
+            ctx.beginPath();
+            ctx.arc(x, y, Math.max(1.6, strokePx * 0.9), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       }
       if (showExtrema && minIdx !== -1 && maxIdx !== -1) {
         const drawExtremaBadge = (idx, value, kind) => {
@@ -330,7 +445,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       drawEdge("right");
     }
     ctx.strokeStyle = t.border; ctx.lineWidth = 1; ctx.strokeRect(pad.left, pad.top, plotW, plotH);
-  }, [signalEntries, yRanges, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues, showExtrema, getPlotValue]);
+  }, [signalEntries, yRanges, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues, showExtrema, getPlotValue, referenceOverlays, unifyRange]);
 
   const drawCursors = useCallback(() => {
     const canvas = cursorRef.current; if (!canvas || !traceRef.current) return;
@@ -683,8 +798,65 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
   useEffect(() => { const obs = new ResizeObserver(() => { drawTraces(); drawCursors(); }); if (containerRef.current) obs.observe(containerRef.current); return () => obs.disconnect(); }, [drawTraces, drawCursors]);
 
   const getIdx = useCallback((e) => { const c = traceRef.current; if (!c) return null; const { pad, plotW } = getGeo(c); const r = c.getBoundingClientRect(); const x = e.clientX - r.left - pad.left; const f = x / plotW; if (f < 0 || f > 1) return null; return Math.max(start, Math.min(end - 1, Math.round(start + f * (end - start)))); }, [start, end, getGeo]);
+  const getOverlayDragTarget = useCallback((e) => {
+    if (!referenceOverlays?.length || !traceRef.current) return null;
+    const rect = traceRef.current.getBoundingClientRect();
+    const { pad, plotW, plotH } = getGeo(traceRef.current);
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const sc = end - start || 1;
+    const [yMin, yMax] = (unifyRange && yRanges.length ? yRanges[0] : yRanges[0]) || [0, 1];
+    const yR = yMax - yMin || 1;
+    const near = (x, y) => Math.hypot(mx - x, my - y) <= 8;
+    for (let i = referenceOverlays.length - 1; i >= 0; i--) {
+      const ov = referenceOverlays[i];
+      if (!ov || ov.visible === false) continue;
+      if (ov.axis === "x") {
+        if (ov.type === "band") {
+          const x1 = pad.left + (((Number(ov.sample) || 0) - start) / sc) * plotW;
+          const x2 = pad.left + (((Number(ov.sampleEnd) || 0) - start) / sc) * plotW;
+          if (near(x1, pad.top + 4)) return { id: ov.id, axis: "x", edge: "start" };
+          if (near(x2, pad.top + 4)) return { id: ov.id, axis: "x", edge: "end" };
+        } else {
+          const x = pad.left + (((Number(ov.sample) || 0) - start) / sc) * plotW;
+          if (near(x, pad.top + 4)) return { id: ov.id, axis: "x", edge: "single" };
+        }
+      } else if (ov.type === "band") {
+        const y1 = pad.top + plotH - (((Math.max(Number(ov.min) || 0, Number(ov.max) || 0)) - yMin) / yR) * plotH;
+        const y2 = pad.top + plotH - (((Math.min(Number(ov.min) || 0, Number(ov.max) || 0)) - yMin) / yR) * plotH;
+        const hx = pad.left + plotW - 4;
+        if (near(hx, y1)) return { id: ov.id, axis: "y", edge: "max" };
+        if (near(hx, y2)) return { id: ov.id, axis: "y", edge: "min" };
+      } else {
+        const y = pad.top + plotH - (((Number(ov.value) || 0) - yMin) / yR) * plotH;
+        const hx = pad.left + plotW - 4;
+        if (near(hx, y)) return { id: ov.id, axis: "y", edge: "single" };
+      }
+    }
+    return null;
+  }, [referenceOverlays, getGeo, end, start, unifyRange, yRanges]);
 
   const handleMouseMove = useCallback((e) => {
+    if (overlayDragRef.current && onOverlayChange && traceRef.current) {
+      const target = overlayDragRef.current;
+      const rect = traceRef.current.getBoundingClientRect();
+      const { pad, plotW, plotH } = getGeo(traceRef.current);
+      const sc = end - start || 1;
+      const [yMin, yMax] = (unifyRange && yRanges.length ? yRanges[0] : yRanges[0]) || [0, 1];
+      const yR = yMax - yMin || 1;
+      const px = Math.max(pad.left, Math.min(pad.left + plotW, e.clientX - rect.left));
+      const py = Math.max(pad.top, Math.min(pad.top + plotH, e.clientY - rect.top));
+      if (target.axis === "x") {
+        const sample = Math.round(start + ((px - pad.left) / plotW) * sc);
+        onOverlayChange(target.id, target.edge === "end" ? { sampleEnd: sample } : { sample });
+      } else {
+        const value = yMin + ((pad.top + plotH - py) / plotH) * yR;
+        if (target.edge === "max") onOverlayChange(target.id, { max: value });
+        else if (target.edge === "min") onOverlayChange(target.id, { min: value });
+        else onOverlayChange(target.id, { value });
+      }
+      return;
+    }
     if (panStart.current) {
       const r = traceRef.current.getBoundingClientRect(); const { plotW: pw } = getGeo(traceRef.current);
       const dx = e.clientX - panStart.current.x; const s2 = panStart.current.end - panStart.current.start;
@@ -711,7 +883,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         });
       }
     }
-  }, [getIdx, getGeo, deltaMode, deltaLocked, cursorIdx, setCursorIdx, setCursor2Idx, timestamps, setViewRange]);
+  }, [getIdx, getGeo, deltaMode, deltaLocked, cursorIdx, setCursorIdx, setCursor2Idx, timestamps, setViewRange, onOverlayChange, start, end, unifyRange, yRanges]);
 
   useEffect(() => () => { if (rafPending.current) cancelAnimationFrame(rafPending.current); }, []);
 
@@ -737,8 +909,19 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     }
   }, [deltaMode, deltaLocked, cursorIdx, getIdx, setCursorIdx, setCursor2Idx, setDeltaLocked]);
   const handleWheel = useCallback((e) => { e.preventDefault(); const zoom = e.deltaY > 0 ? 1.15 : 0.85; const idx = getIdx(e); const center = idx !== null ? idx : Math.floor((start + end) / 2); const s2 = end - start; const nc = Math.max(50, Math.min(timestamps.length, Math.round(s2 * zoom))); const fr = (center - start) / s2; let ns = Math.round(center - fr * nc), ne = ns + nc; if (ns < 0) { ne -= ns; ns = 0; } if (ne > timestamps.length) { ns -= (ne - timestamps.length); ne = timestamps.length; } setViewRange([Math.max(0, ns), Math.min(timestamps.length, ne)]); }, [start, end, timestamps, getIdx, setViewRange]);
-  const handleMouseDown = useCallback((e) => { if (e.button === 0 && !deltaMode) { panStart.current = { x: e.clientX, start, end }; e.preventDefault(); } if (e.button === 1) { panStart.current = { x: e.clientX, start, end }; e.preventDefault(); } }, [start, end, deltaMode]);
-  const handleMouseUp = useCallback(() => { panStart.current = null; }, []);
+  const handleMouseDown = useCallback((e) => {
+    if (e.button === 0) {
+      const target = getOverlayDragTarget(e);
+      if (target) {
+        overlayDragRef.current = target;
+        e.preventDefault();
+        return;
+      }
+    }
+    if (e.button === 0 && !deltaMode) { panStart.current = { x: e.clientX, start, end }; e.preventDefault(); }
+    if (e.button === 1) { panStart.current = { x: e.clientX, start, end }; e.preventDefault(); }
+  }, [start, end, deltaMode, getOverlayDragTarget]);
+  const handleMouseUp = useCallback(() => { panStart.current = null; overlayDragRef.current = null; }, []);
 
   return (
     <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
