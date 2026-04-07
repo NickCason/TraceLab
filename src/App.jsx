@@ -15,6 +15,7 @@ import { computeStats } from "./utils/stats";
 import { downloadBlob } from "./utils/download";
 import { ensureFonts } from "./utils/fonts";
 import { buildEquationEvaluator } from "./utils/derivedEquation";
+import { clampSeamPercent, hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./utils/seamAdjustment";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
 
@@ -56,6 +57,16 @@ function remapDerivedConfig(cfg, removedIdx) {
   }
   if (cfg.type === "equation") return { ...cfg, expression: remapEquationExpression(cfg.expression, removedIdx) };
   return cfg;
+}
+
+function resolveSignalSeam(styleCfg, values) {
+  const domain = inferSeamDomain(values);
+  const percent = styleCfg?.seamOffsetPct !== undefined
+    ? Number(styleCfg.seamOffsetPct) || 0
+    : seamOffsetToPercent(styleCfg?.seamOffset || 0, domain.span);
+  const boundedPercent = clampSeamPercent(percent);
+  const offset = seamPercentToOffset(boundedPercent, domain.span);
+  return { ...domain, percent: boundedPercent, offset, active: hasSeamAdjustment({ offset }) };
 }
 
 export default function App() {
@@ -312,6 +323,7 @@ export default function App() {
       if (!paneMap.has(g)) paneMap.set(g, []);
       const baseColor = signalStyles[i]?.color || sc[i % sc.length];
       const baseDash = signalStyles[i]?.dash || "solid";
+      const seamCfg = resolveSignalSeam(signalStyles[i], signal.values);
 
       // Original signal entry (unless hidden by hideOriginal)
       if (!hideOriginal[i]) {
@@ -320,6 +332,7 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: baseDash,
+          seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
           isAvg: !!signal.isDerived,
         });
       }
@@ -351,6 +364,7 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: "dashed",
+          seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
           isAvg: true,
           parentIndex: i,
         });
@@ -386,6 +400,25 @@ export default function App() {
     return maxW;
   }, [showEdgeValues, data, viewRange, chartPanes]);
 
+  const globalLeftEdgeLabelWidth = useMemo(() => {
+    if (!showEdgeValues || !data) return 0;
+    const [start, end] = viewRange;
+    let maxW = 0;
+    chartPanes.forEach(pane => {
+      pane.entries.forEach(({ signal, unit, isAvg }) => {
+        for (let i = start; i < end; i++) {
+          if (signal.values[i] !== null) {
+            const prefix = isAvg ? "x̄ " : "";
+            const str = prefix + signal.values[i].toFixed(2) + (unit ? " " + unit : "");
+            maxW = Math.max(maxW, str.length * 6.5 + 14);
+            break;
+          }
+        }
+      });
+    });
+    return maxW;
+  }, [showEdgeValues, data, viewRange, chartPanes]);
+
   const applyRebase = useCallback(() => {
     if (!data || !rebaseInput.trim()) return;
     try { const target = new Date(rebaseInput.trim()); if (isNaN(target.getTime())) { showToast("Invalid date format", "error"); return; } setRebaseOffset(target.getTime() - data.timestamps[0]); showToast(`Rebased: start → ${fmtTsClean(target.getTime())}`, "success"); } catch { showToast("Invalid date format", "error"); }
@@ -394,7 +427,7 @@ export default function App() {
 
   const saveProject = useCallback(() => {
     if (!data) return;
-    const project = { version: 3, data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
+    const project = { version: 4, data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
     const blob = new Blob([JSON.stringify(project)], { type: "application/json" });
     const filename = `${(data.meta.trendName || "project").replace(/\s+/g, "_")}.tracelab`;
     downloadBlob(blob, filename, () => showToast("Project saved", "success"));
@@ -628,8 +661,10 @@ export default function App() {
                         const next = { ...cur };
                         if (updates.color !== undefined) next.color = updates.color;
                         if (updates.dash !== undefined) next.dash = updates.dash;
+                        if (updates.seamOffset !== undefined) next.seamOffset = updates.seamOffset;
+                        if (updates.seamOffsetPct !== undefined) next.seamOffsetPct = updates.seamOffsetPct;
                         // If both null, remove override entirely
-                        if (!next.color && !next.dash) { const n = { ...prev }; delete n[idx]; return n; }
+                        if (!next.color && !next.dash && !next.seamOffset && !next.seamOffsetPct) { const n = { ...prev }; delete n[idx]; return n; }
                         return { ...prev, [idx]: next };
                       })}
                       theme={theme}
@@ -778,7 +813,7 @@ export default function App() {
                       showTimeAxis={pi === chartPanes.length - 1} label={paneGc ? null : pane.label} compact={chartPanes.length > 2}
                       theme={theme} rebaseOffset={rebaseOffset}
                       groupColor={paneGc} showPills={showPills} showEdgeValues={showEdgeValues} unifyRange={!splitRanges[pane.groupIdx]}
-                      deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} showExtrema={showExtrema} />
+                      deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} globalLeftEdgeLabelWidth={globalLeftEdgeLabelWidth} showExtrema={showExtrema} />
                   </div>
                 </div>
               );
