@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 
-export default function DerivedPenDialog({ open, mode = "create", theme, signals, groups, defaultGroupIdx, defaultType, initialDraft = null, getDisplayName, onCancel, onCreate }) {
+export default function DerivedPenDialog({ open, mode = "create", theme, signals, groups, defaultGroupIdx, defaultType, initialDraft = null, getDisplayName, getGroupLabel, onCancel, onCreate }) {
   const t = THEMES[theme];
   const [name, setName] = useState("");
   const [type, setType] = useState(defaultType || "equation");
@@ -36,9 +36,15 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
   }, [open, defaultType, defaultGroupIdx, initialDraft]);
 
   const variableLegend = useMemo(
-    () => signals.map((_, i) => ({ token: `s${i}`, label: getDisplayName(i), group: groups[i] || 1 })),
-    [signals, getDisplayName, groups]
+    () => signals.map((_, i) => ({ token: `s${i}`, label: getDisplayName(i), group: groups[i] || 1, groupLabel: getGroupLabel(groups[i] || 1) })),
+    [signals, getDisplayName, groups, getGroupLabel]
   );
+
+  const usedTokens = useMemo(() => {
+    if (type !== "equation") return [];
+    const found = expression.match(/\bs\d+\b/g) || [];
+    return [...new Set(found)];
+  }, [expression, type]);
 
   if (!open) return null;
 
@@ -88,7 +94,7 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
           <div>
             <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Target Chart Group</div>
             <select value={groupIdx} onChange={(e) => setGroupIdx(e.target.value)} style={inputStyle}>
-              {Array.from({ length: 8 }, (_, i) => i + 1).map(g => <option key={g} value={g}>Group {g}</option>)}
+              {Array.from({ length: 8 }, (_, i) => i + 1).map(g => <option key={g} value={g}>{getGroupLabel(g)}</option>)}
             </select>
           </div>
           <div>
@@ -99,9 +105,22 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
 
         {type === "equation" && (
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Equation (supports Math functions)</div>
+            <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Equation (s0/s1 tokens + Math functions)</div>
             <textarea value={expression} onChange={(e) => setExpression(e.target.value)} rows={3} style={{ ...inputStyle, resize: "vertical", minHeight: 62 }} />
-            <div style={{ fontSize: 11, color: t.text4, marginTop: 4, fontFamily: FONT_DISPLAY }}>Click variables below to insert tokens like <span style={{ fontFamily: FONT_MONO }}>s3</span>.</div>
+            <div style={{ fontSize: 11, color: t.text4, marginTop: 4, fontFamily: FONT_DISPLAY }}>Click variables below to insert tokens like <span style={{ fontFamily: FONT_MONO }}>s3</span>. Example: <span style={{ fontFamily: FONT_MONO }}>abs(s0 - s1)</span>.</div>
+            {usedTokens.length > 0 && (
+              <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {usedTokens.map(token => {
+                  const idx = parseInt(token.slice(1), 10);
+                  const tag = variableLegend[idx];
+                  return (
+                    <span key={token} title={tag ? `${tag.label} • ${tag.groupLabel}` : "Unknown signal"} style={{ fontSize: 11, border: `1px solid ${t.border}`, background: t.surface, color: t.text2, borderRadius: 6, padding: "1px 6px", fontFamily: FONT_MONO, cursor: "help" }}>
+                      {token}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -140,7 +159,7 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
         <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Variables (all charts/signals)</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, maxHeight: 150, overflow: "auto", border: `1px solid ${t.borderSubtle}`, borderRadius: 8, padding: 6, marginBottom: 8 }}>
           {variableLegend.map(v => (
-            <button key={v.token} onClick={() => insertToken(v.token)} style={{ border: `1px solid ${t.border}`, background: t.surface, color: t.text2, borderRadius: 6, fontSize: 11, fontFamily: FONT_MONO, padding: "2px 6px", cursor: "pointer" }}>
+            <button key={v.token} title={`${v.label} • ${v.groupLabel}`} onClick={() => insertToken(v.token)} style={{ border: `1px solid ${t.border}`, background: t.surface, color: t.text2, borderRadius: 6, fontSize: 11, fontFamily: FONT_MONO, padding: "2px 6px", cursor: "pointer" }}>
               {v.token}
             </button>
           ))}
@@ -150,7 +169,7 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
         <div style={{ maxHeight: 160, overflow: "auto", border: `1px solid ${t.borderSubtle}`, borderRadius: 8, padding: 6, marginBottom: 10 }}>
           {variableLegend.map(v => (
             <div key={v.token} style={{ fontSize: 11, color: t.text2, fontFamily: FONT_MONO, padding: "1px 0" }}>
-              <span style={{ color: t.accent, fontWeight: 700 }}>{v.token}</span> = {v.label} <span style={{ color: t.text4 }}>(Group {v.group})</span>
+              <span style={{ color: t.accent, fontWeight: 700 }}>{v.token}</span> = {v.label} <span style={{ color: t.text4 }}>({v.groupLabel})</span>
             </div>
           ))}
         </div>
