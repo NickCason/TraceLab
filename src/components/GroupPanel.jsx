@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { THEMES, FONT_DISPLAY } from "../constants/theme";
+import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { GROUP_LABELS } from "../constants/groups";
 import { getAutoSignalColor } from "../constants/colors";
 import SignalCard from "./SignalCard";
