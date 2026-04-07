@@ -606,24 +606,50 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           layoutPills(c2Pills, x2, c2Side);
         }
 
+        const computeUnrolledDelta = (entry, idxA, idxB) => {
+          const span = entry?.seam?.span;
+          if (!span || span <= 0 || idxA === idxB) return null;
+          const threshold = span * 0.5;
+          const dir = idxB > idxA ? 1 : -1;
+          let prev = entry.signal.values[idxA];
+          if (prev === null || prev === undefined || Number.isNaN(prev)) return null;
+          let total = 0;
+          let rollovers = 0;
+          for (let i = idxA + dir; dir > 0 ? i <= idxB : i >= idxB; i += dir) {
+            const cur = entry.signal.values[i];
+            if (cur === null || cur === undefined || Number.isNaN(cur)) continue;
+            let d = cur - prev;
+            if (d > threshold) { d -= span; rollovers++; }
+            else if (d < -threshold) { d += span; rollovers++; }
+            total += d;
+            prev = cur;
+          }
+          return rollovers > 0 ? { delta: total, rollovers } : null;
+        };
+
         // Midrange delta pill — centered between cursors with ΔT and per-signal ΔV
         const midX = (xL + xR) / 2;
         const deltaT = Math.abs(timestamps[cursor2Idx] - timestamps[cursorIdx]);
         // Build delta text lines
         const deltaLines = [];
         deltaLines.push(`ΔT: ${deltaT.toFixed(1)} ms`);
-        signalEntries.forEach(({ signal, color: c2color, unit, displayName }, si) => {
+        signalEntries.forEach((entry, si) => {
+          const { signal, color: c2color, unit } = entry;
           const v1 = signal.values[cursorIdx], v2 = signal.values[cursor2Idx];
           if (v1 !== null && v2 !== null) {
             deltaLines.push({ text: `Δ ${(v2 - v1).toFixed(3)}${unit ? " " + unit : ""}`, color: c2color });
+            const unrolled = computeUnrolledDelta(entry, cursorIdx, cursor2Idx);
+            if (unrolled) {
+              deltaLines.push({ text: `Δu ${unrolled.delta.toFixed(3)}${unit ? " " + unit : ""} (${unrolled.rollovers}x)`, color: c2color, isUnrolled: true });
+            }
           }
         });
 
         if (deltaLines.length > 0 && xR - xL > 50) {
-          ctx.font = `bold 10px ${FONT_MONO}`;
-          const lineH = 13;
+          ctx.font = `bold 12px ${FONT_MONO}`;
+          const lineH = 15;
           const maxTw = Math.max(...deltaLines.map(l => ctx.measureText(typeof l === "string" ? l : l.text).width));
-          const boxW = maxTw + 16, boxH = deltaLines.length * lineH + 8;
+          const boxW = maxTw + 20, boxH = deltaLines.length * lineH + 10;
           const bx = midX - boxW / 2, by = pad.top + plotH / 2 - boxH / 2;
 
           // Background
@@ -637,10 +663,10 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           deltaLines.forEach((line, li) => {
             const ly = by + 4 + lineH / 2 + li * lineH;
             if (typeof line === "string") {
-              ctx.fillStyle = t.cursor2; ctx.globalAlpha = 0.9; ctx.font = `bold 10px ${FONT_MONO}`;
+              ctx.fillStyle = t.cursor2; ctx.globalAlpha = 0.9; ctx.font = `bold 12px ${FONT_MONO}`;
               ctx.fillText(line, midX, ly);
             } else {
-              ctx.fillStyle = line.color; ctx.globalAlpha = 0.85; ctx.font = `bold 9px ${FONT_MONO}`;
+              ctx.fillStyle = line.color; ctx.globalAlpha = line.isUnrolled ? 0.95 : 0.88; ctx.font = `bold 11px ${FONT_MONO}`;
               ctx.fillText(line.text, midX, ly);
             }
           });
