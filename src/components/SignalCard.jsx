@@ -3,7 +3,7 @@ import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import Sparkline from "./Sparkline";
 import MarqueeText from "./MarqueeText";
 
-export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
+export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
   const t = THEMES[theme];
   const hasCustomName = displayName !== tagName;
   const [showStylePicker, setShowStylePicker] = useState(false);
@@ -45,8 +45,16 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
 
   return (
     <div
-      draggable
-      onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(index)); e.dataTransfer.effectAllowed = "move"; }}
+      draggable={!showStylePicker}
+      onDragStart={(e) => {
+        const interactive = e.target.closest?.("input, button, select, textarea");
+        if (interactive || showStylePicker) {
+          e.preventDefault();
+          return;
+        }
+        e.dataTransfer.setData("text/plain", String(index));
+        e.dataTransfer.effectAllowed = "move";
+      }}
       style={{
         display: "flex", alignItems: "center", gap: 5, padding: "5px 7px", borderRadius: 8, marginBottom: 2,
         background: vis ? t.surface : "transparent",
@@ -125,9 +133,29 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
               }}>{d.label}</button>
             ))}
           </div>
-          <div onClick={() => { onStyleChange(index, { color: null, dash: null }); setShowStylePicker(false); }} style={{
+          <div onClick={() => { onStyleChange(index, { color: null, dash: null, seamOffset: 0 }); setShowStylePicker(false); }} style={{
             marginTop: 6, fontSize: 12, color: t.text4, cursor: "pointer", textAlign: "center", fontFamily: FONT_DISPLAY,
           }}>Reset to default</div>
+          {!isDigital && (
+            <div style={{ marginTop: 8, paddingTop: 6, borderTop: `1px solid ${t.border}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12, color: t.text3, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT_DISPLAY }}>
+                <span>Seam Adjust</span>
+                <span style={{ fontFamily: FONT_MONO, letterSpacing: 0, textTransform: "none", color: t.text2 }}>{Math.round(seamOffset)}°</span>
+              </div>
+              <input
+                type="range"
+                min="-180"
+                max="180"
+                step="1"
+                value={Math.round(seamOffset)}
+                onChange={(e) => onStyleChange(index, { seamOffset: parseInt(e.target.value, 10) || 0 })}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                style={{ width: "100%" }}
+                title="Virtual seam offset for wrapped values"
+              />
+            </div>
+          )}
           {isDerived && (
             <>
               <button
