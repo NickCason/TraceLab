@@ -8,7 +8,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
   const t = THEMES[theme];
   const [dragOver, setDragOver] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [showOverlays, setShowOverlays] = useState(false);
+  const [showOverlays] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(label);
   const nameRef = useRef(null);
@@ -159,11 +159,10 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
       )}
       {!collapsed && !isEmpty && (
         <div style={{ padding: "2px 6px 6px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-            <div onClick={() => setShowOverlays(v => !v)} style={{ fontSize: 11, color: t.text3, fontWeight: 700, letterSpacing: 0.6, fontFamily: FONT_DISPLAY, cursor: "pointer" }}>
-              OVERLAYS {showOverlays ? "▾" : "▸"} <span style={{ color: t.text4, fontWeight: 500 }}>({referenceOverlays.length})</span>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: t.text3, fontWeight: 700, letterSpacing: 0.6, fontFamily: FONT_DISPLAY }}>
+              OVERLAYS <span style={{ color: t.text4, fontWeight: 500 }}>({referenceOverlays.length})</span>
             </div>
-            <div style={{ fontSize: 10, color: t.text4, fontFamily: FONT_DISPLAY }}>Use + Reference in chart header</div>
           </div>
           {showOverlays && referenceOverlays.map((ov) => (
             <div key={ov.id} style={{ display: "grid", gridTemplateColumns: "16px 1fr 54px 28px", gap: 4, alignItems: "center", marginBottom: 3, padding: "4px 5px", borderRadius: 6, border: `1px solid ${t.borderSubtle}`, background: t.surface }}>
