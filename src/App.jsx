@@ -15,7 +15,7 @@ import { computeStats } from "./utils/stats";
 import { downloadBlob } from "./utils/download";
 import { ensureFonts } from "./utils/fonts";
 import { buildEquationEvaluator } from "./utils/derivedEquation";
-import { hasSeamAdjustment } from "./utils/seamAdjustment";
+import { hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./utils/seamAdjustment";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
 
@@ -57,6 +57,15 @@ function remapDerivedConfig(cfg, removedIdx) {
   }
   if (cfg.type === "equation") return { ...cfg, expression: remapEquationExpression(cfg.expression, removedIdx) };
   return cfg;
+}
+
+function resolveSignalSeam(styleCfg, values) {
+  const domain = inferSeamDomain(values);
+  const percent = styleCfg?.seamOffsetPct !== undefined
+    ? Number(styleCfg.seamOffsetPct) || 0
+    : seamOffsetToPercent(styleCfg?.seamOffset || 0, domain.span);
+  const offset = seamPercentToOffset(percent, domain.span);
+  return { ...domain, percent, offset, active: hasSeamAdjustment({ offset }) };
 }
 
 export default function App() {
@@ -313,7 +322,7 @@ export default function App() {
       if (!paneMap.has(g)) paneMap.set(g, []);
       const baseColor = signalStyles[i]?.color || sc[i % sc.length];
       const baseDash = signalStyles[i]?.dash || "solid";
-      const seamOffset = signalStyles[i]?.seamOffset || 0;
+      const seamCfg = resolveSignalSeam(signalStyles[i], signal.values);
 
       // Original signal entry (unless hidden by hideOriginal)
       if (!hideOriginal[i]) {
@@ -322,7 +331,7 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: baseDash,
-          seam: hasSeamAdjustment({ offset: seamOffset }) ? { offset: seamOffset, origin: 0, span: 360 } : null,
+          seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
           isAvg: !!signal.isDerived,
         });
       }
@@ -354,7 +363,7 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: "dashed",
-          seam: hasSeamAdjustment({ offset: seamOffset }) ? { offset: seamOffset, origin: 0, span: 360 } : null,
+          seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
           isAvg: true,
           parentIndex: i,
         });
@@ -652,8 +661,9 @@ export default function App() {
                         if (updates.color !== undefined) next.color = updates.color;
                         if (updates.dash !== undefined) next.dash = updates.dash;
                         if (updates.seamOffset !== undefined) next.seamOffset = updates.seamOffset;
+                        if (updates.seamOffsetPct !== undefined) next.seamOffsetPct = updates.seamOffsetPct;
                         // If both null, remove override entirely
-                        if (!next.color && !next.dash && !next.seamOffset) { const n = { ...prev }; delete n[idx]; return n; }
+                        if (!next.color && !next.dash && !next.seamOffset && !next.seamOffsetPct) { const n = { ...prev }; delete n[idx]; return n; }
                         return { ...prev, [idx]: next };
                       })}
                       theme={theme}
