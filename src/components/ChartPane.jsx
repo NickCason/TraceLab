@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect, useMemo } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { fmtTime } from "../utils/date";
-import { arrayMinMax } from "../utils/stats";
+import { normalizeToSeam } from "../utils/seamAdjustment";
 
 function buildDeltaCursor(label, color, isDark) {
   const badgeBg = isDark ? "#111214" : "#ffffff";
@@ -20,13 +20,25 @@ function buildDeltaCursor(label, color, isDark) {
 export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth, showExtrema = false }) {
   const traceRef = useRef(null), cursorRef = useRef(null), containerRef = useRef(null), panStart = useRef(null), rafPending = useRef(null), pendingIdx = useRef(null);
   const [start, end] = viewRange; const t = THEMES[theme];
+  const getPlotValue = useCallback((entry, idx) => {
+    const raw = entry.signal.values[idx];
+    if (raw === null || raw === undefined || Number.isNaN(raw)) return null;
+    return entry.seam ? normalizeToSeam(raw, entry.seam) : raw;
+  }, []);
 
   const yRanges = useMemo(() => {
     // First pass: get raw min/max per signal (before any padding)
-    const raw = signalEntries.map(({ signal }) => {
-      const r = arrayMinMax(signal.values, start, end);
-      if (!r) return null;
-      return [r.min, r.max];
+    const raw = signalEntries.map((entry) => {
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = start; i < end; i++) {
+        const v = getPlotValue(entry, i);
+        if (v === null) continue;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      if (min === Infinity) return null;
+      return [min, max];
     });
 
     if (!unifyRange || signalEntries.length <= 1) {
@@ -52,7 +64,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     const p = (gMax - gMin) * 0.08;
     const unified = [gMin - p, gMax + p];
     return raw.map(() => unified);
-  }, [signalEntries, start, end, unifyRange]);
+  }, [signalEntries, start, end, unifyRange, getPlotValue]);
 
   // Pre-compute max right-edge label width for dynamic padding
   // Use global width (from App) so all panes align, fall back to local computation
@@ -111,7 +123,8 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       if (showTimeAxis) { const idx = start + Math.floor((sc / nX) * i); if (idx < timestamps.length) { ctx.fillStyle = t.text3; ctx.font = `11px ${FONT_MONO}`; ctx.textAlign = "center"; ctx.fillText(fmtTime(timestamps[idx] + rebaseOffset), x, pad.top + plotH + 16); } }
     }
     const stride = Math.max(1, Math.floor(sc / (plotW * 2)));
-    signalEntries.forEach(({ signal, color, dash }, si) => {
+    signalEntries.forEach((entry, si) => {
+      const { signal, color, dash } = entry;
       const [yMin, yMax] = yRanges[si]; const yR = yMax - yMin;
       let minV = Infinity, maxV = -Infinity, minIdx = -1, maxIdx = -1;
       ctx.strokeStyle = color; ctx.lineWidth = signal.isDigital ? 2 : 1.5; ctx.globalAlpha = 0.9;
@@ -124,7 +137,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
 
       if (dash === "samples") {
         for (let i = start; i < end; i += stride) {
-          const v = signal.values[i]; if (v === null) continue;
+          const v = getPlotValue(entry, i); if (v === null) continue;
           if (v < minV) { minV = v; minIdx = i; }
           if (v > maxV) { maxV = v; maxIdx = i; }
           const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
@@ -137,12 +150,12 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       } else {
         ctx.beginPath(); let started = false;
         for (let i = start; i < end; i += stride) {
-          const v = signal.values[i]; if (v === null) { started = false; continue; }
+          const v = getPlotValue(entry, i); if (v === null) { started = false; continue; }
           if (v < minV) { minV = v; minIdx = i; }
           if (v > maxV) { maxV = v; maxIdx = i; }
           const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
           if (!started) { ctx.moveTo(x, y); started = true; }
-          else if (signal.isDigital && i > start) { const pi2 = Math.max(start, i - stride); const pv = signal.values[pi2]; if (pv !== null) ctx.lineTo(x, pad.top + plotH - ((pv - yMin) / yR) * plotH); ctx.lineTo(x, y); }
+          else if (signal.isDigital && i > start) { const pi2 = Math.max(start, i - stride); const pv = getPlotValue(entry, pi2); if (pv !== null) ctx.lineTo(x, pad.top + plotH - ((pv - yMin) / yR) * plotH); ctx.lineTo(x, y); }
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
@@ -181,16 +194,18 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       const drawEdge = (side) => {
         const isLeft = side === "left";
         const edgePills = [];
-        signalEntries.forEach(({ signal, color, unit, isAvg }, si) => {
+        signalEntries.forEach((entry, si) => {
+          const { signal, color, unit, isAvg } = entry;
           const [yMin, yMax] = yRanges[si]; const yR = yMax - yMin;
           // Find first/last non-null value in view
           let idx = -1;
-          if (isLeft) { for (let i = start; i < end; i++) { if (signal.values[i] !== null) { idx = i; break; } } }
-          else { for (let i = end - 1; i >= start; i--) { if (signal.values[i] !== null) { idx = i; break; } } }
+          if (isLeft) { for (let i = start; i < end; i++) { if (getPlotValue(entry, i) !== null) { idx = i; break; } } }
+          else { for (let i = end - 1; i >= start; i--) { if (getPlotValue(entry, i) !== null) { idx = i; break; } } }
           if (idx === -1) return;
-          const v = signal.values[idx];
-          const y = pad.top + plotH - ((v - yMin) / yR) * plotH;
-          edgePills.push({ v, y, color, unit, isAvg: !!isAvg });
+          const plotV = getPlotValue(entry, idx);
+          const rawV = signal.values[idx];
+          const y = pad.top + plotH - ((plotV - yMin) / yR) * plotH;
+          edgePills.push({ v: rawV, y, color, unit, isAvg: !!isAvg });
         });
         if (!edgePills.length) return;
         // Sort and layout to avoid overlaps
@@ -266,7 +281,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       drawEdge("right");
     }
     ctx.strokeStyle = t.border; ctx.lineWidth = 1; ctx.strokeRect(pad.left, pad.top, plotW, plotH);
-  }, [signalEntries, yRanges, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues, showExtrema]);
+  }, [signalEntries, yRanges, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues, showExtrema, getPlotValue]);
 
   const drawCursors = useCallback(() => {
     const canvas = cursorRef.current; if (!canvas || !traceRef.current) return;
@@ -323,9 +338,12 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
 
       const pills = []; // collect pill positions to avoid overlaps
-      signalEntries.forEach(({ signal, color: c2, unit, displayName, isAvg }, si) => {
-        const v = signal.values[idx]; if (v === null) return;
-        const [mn, mx] = yRanges[si]; const y = pad.top + plotH - ((v - mn) / (mx - mn)) * plotH;
+      signalEntries.forEach((entry, si) => {
+        const { signal, color: c2, unit, displayName, isAvg } = entry;
+        const rawV = signal.values[idx];
+        const plotV = getPlotValue(entry, idx);
+        if (plotV === null || rawV === null) return;
+        const [mn, mx] = yRanges[si]; const y = pad.top + plotH - ((plotV - mn) / (mx - mn)) * plotH;
         // Dot — avg uses hollow diamond, original uses filled circle
         if (isAvg) {
           ctx.strokeStyle = c2; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.8;
@@ -338,7 +356,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         }
 
         if (showPills) {
-          pills.push({ v, y, color: c2, unit, displayName, isAvg: !!isAvg });
+          pills.push({ v: rawV, y, color: c2, unit, displayName, isAvg: !!isAvg });
         }
       });
 
@@ -464,12 +482,15 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           const pillH = 14, pillGap = 2, pillPad = 5;
           // Collect values at both cursors
           const c1Pills = [], c2Pills = [];
-          signalEntries.forEach(({ signal, color: c2color, unit, isAvg }, si) => {
+          signalEntries.forEach((entry, si) => {
+            const { signal, color: c2color, unit, isAvg } = entry;
             const v1 = signal.values[cursorIdx];
             const v2 = signal.values[cursor2Idx];
+            const p1 = getPlotValue(entry, cursorIdx);
+            const p2 = getPlotValue(entry, cursor2Idx);
             const [mn, mx] = yRanges[si];
-            if (v1 !== null) c1Pills.push({ v: v1, y: pad.top + plotH - ((v1 - mn) / (mx - mn)) * plotH, color: c2color, unit, isAvg: !!isAvg });
-            if (v2 !== null) c2Pills.push({ v: v2, y: pad.top + plotH - ((v2 - mn) / (mx - mn)) * plotH, color: c2color, unit, isAvg: !!isAvg });
+            if (v1 !== null && p1 !== null) c1Pills.push({ v: v1, y: pad.top + plotH - ((p1 - mn) / (mx - mn)) * plotH, color: c2color, unit, isAvg: !!isAvg });
+            if (v2 !== null && p2 !== null) c2Pills.push({ v: v2, y: pad.top + plotH - ((p2 - mn) / (mx - mn)) * plotH, color: c2color, unit, isAvg: !!isAvg });
           });
 
           // Layout helper
@@ -580,7 +601,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         drawCursorHandleTag(x1, "1", t.cursor1);
       }
     }
-  }, [signalEntries, yRanges, cursorIdx, cursor2Idx, deltaMode, pillsEnabled, start, end, t, getGeo, timestamps]);
+  }, [signalEntries, yRanges, cursorIdx, cursor2Idx, deltaMode, pillsEnabled, start, end, t, getGeo, timestamps, getPlotValue]);
 
   useEffect(() => { drawTraces(); }, [drawTraces]);
   useEffect(() => { drawCursors(); }, [drawCursors]);
