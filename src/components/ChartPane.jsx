@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect, useMemo } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { fmtTime } from "../utils/date";
-import { normalizeToSeam, denormalizeFromSeam } from "../utils/seamAdjustment";
+import { normalizeToSeam } from "../utils/seamAdjustment";
 
 function buildDeltaCursor(label, color, isDark) {
   const badgeBg = isDark ? "#111214" : "#ffffff";
@@ -230,11 +230,10 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       if (si === 0) {
         for (let i = 0; i <= nY; i++) {
           const plotVal = yMin + ((nY - i) / nY) * yR;
-          const axisVal = entry.seam ? denormalizeFromSeam(plotVal, entry.seam) : plotVal;
           ctx.fillStyle = t.text3;
           ctx.font = `11px ${FONT_MONO}`;
           ctx.textAlign = "right";
-          ctx.fillText(axisVal.toFixed(2), pad.left - 6, pad.top + (plotH / nY) * i + 3);
+          ctx.fillText(plotVal.toFixed(2), pad.left - 6, pad.top + (plotH / nY) * i + 3);
         }
       }
     });
