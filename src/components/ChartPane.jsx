@@ -1,8 +1,7 @@
 import { useRef, useCallback, useEffect, useMemo } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { fmtTime } from "../utils/date";
-import { arrayMinMax } from "../utils/stats";
-import { normalizeToSeam } from "../utils/seamAdjustment";
+import { normalizeToSeam, denormalizeFromSeam } from "../utils/seamAdjustment";
 
 function buildDeltaCursor(label, color, isDark) {
   const badgeBg = isDark ? "#111214" : "#ffffff";
@@ -28,11 +27,18 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
   }, []);
 
   const yRanges = useMemo(() => {
-    // Axis range stays in raw engineering units; seam adjustment only affects plotted coordinates.
-    const raw = signalEntries.map(({ signal }) => {
-      const r = arrayMinMax(signal.values, start, end);
-      if (!r) return null;
-      return [r.min, r.max];
+    // Auto-range uses plotted values so seam adjustment can eliminate rollover spikes.
+    const raw = signalEntries.map((entry) => {
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = start; i < end; i++) {
+        const v = getPlotValue(entry, i);
+        if (v === null) continue;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      if (min === Infinity) return null;
+      return [min, max];
     });
 
     if (!unifyRange || signalEntries.length <= 1) {
@@ -180,7 +186,16 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         if (minIdx !== maxIdx) drawExtremaBadge(minIdx, minV, "MIN");
       }
       ctx.setLineDash([]); ctx.globalAlpha = 1;
-      if (si === 0) { for (let i = 0; i <= nY; i++) { const val = yMin + ((nY - i) / nY) * yR; ctx.fillStyle = t.text3; ctx.font = `11px ${FONT_MONO}`; ctx.textAlign = "right"; ctx.fillText(val.toFixed(2), pad.left - 6, pad.top + (plotH / nY) * i + 3); } }
+      if (si === 0) {
+        for (let i = 0; i <= nY; i++) {
+          const plotVal = yMin + ((nY - i) / nY) * yR;
+          const axisVal = entry.seam ? denormalizeFromSeam(plotVal, entry.seam) : plotVal;
+          ctx.fillStyle = t.text3;
+          ctx.font = `11px ${FONT_MONO}`;
+          ctx.textAlign = "right";
+          ctx.fillText(axisVal.toFixed(2), pad.left - 6, pad.top + (plotH / nY) * i + 3);
+        }
+      }
     });
     // Edge value indicators — arrows at left/right boundaries with values
     if (showEdgeValues) {
