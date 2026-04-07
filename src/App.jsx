@@ -891,7 +891,7 @@ export default function App() {
                   {paneGc && (
                     <div style={{
                       height: 22, display: "flex", alignItems: "center", gap: 6, padding: "0 10px",
-                      background: paneGc + "12", borderBottom: `1px solid ${paneGc}22`, flexShrink: 0, overflow: "hidden",
+                      background: paneGc + "12", borderBottom: `1px solid ${paneGc}22`, flexShrink: 0, overflow: "visible",
                     }}>
                       <div style={{ width: 5, height: 5, borderRadius: 2, background: paneGc, flexShrink: 0 }} />
                       <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: paneGc, fontFamily: FONT_DISPLAY, flexShrink: 0 }}>
@@ -915,7 +915,7 @@ export default function App() {
                         >
                           + Derived
                         </button>
-                        <span style={{ position: "relative" }}>
+                        <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
                           <button
                             onClick={() => setOverlayPickerGroup(prev => prev === pane.groupIdx ? null : pane.groupIdx)}
                             style={{ padding: "1px 6px", borderRadius: 4, border: `1px solid ${paneGc}66`, background: paneGc + "22", color: paneGc, fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, cursor: "pointer" }}
