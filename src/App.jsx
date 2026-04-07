@@ -48,7 +48,7 @@ function remapDerivedConfig(cfg, removedIdx) {
     const source = remapSignalIndex(cfg.source ?? 0, removedIdx);
     return source === null ? { ...cfg, source: 0, invalidRef: true } : { ...cfg, source };
   }
-  if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio") {
+  if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio" || cfg.type === "product" || cfg.type === "min" || cfg.type === "max") {
     const [a = 0, b = 1] = cfg.sources || [];
     const sourceA = remapSignalIndex(a, removedIdx);
     const sourceB = remapSignalIndex(b, removedIdx);
@@ -129,14 +129,27 @@ export default function App() {
             out[i] = sum / buf.length;
           } else out[i] = buf.length ? sum / buf.length : null;
         }
-      } else if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio") {
+      } else if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio" || cfg.type === "product" || cfg.type === "min" || cfg.type === "max") {
         const [aIdx, bIdx] = cfg.sources || [];
+        const domainA = inferSeamDomain(signals[aIdx]?.values || []);
+        const domainB = inferSeamDomain(signals[bIdx]?.values || []);
+        const rolloverSpan = Math.max(domainA.span || 0, domainB.span || 0, 0);
         for (let i = 0; i < out.length; i++) {
           const a = getAt(aIdx, i), b = getAt(bIdx, i);
           if (a === null || b === null) continue;
-          if (cfg.type === "difference") out[i] = a - b;
+          if (cfg.type === "difference") {
+            let diff = a - b;
+            if (cfg.unwrapDiff && rolloverSpan > 0) {
+              const half = rolloverSpan / 2;
+              diff = ((diff + half) % rolloverSpan + rolloverSpan) % rolloverSpan - half;
+            }
+            out[i] = cfg.absDiff ? Math.abs(diff) : diff;
+          }
           else if (cfg.type === "sum") out[i] = a + b;
-          else out[i] = Math.abs(b) < 1e-12 ? null : a / b;
+          else if (cfg.type === "ratio") out[i] = Math.abs(b) < 1e-12 ? null : a / b;
+          else if (cfg.type === "product") out[i] = a * b;
+          else if (cfg.type === "min") out[i] = Math.min(a, b);
+          else if (cfg.type === "max") out[i] = Math.max(a, b);
         }
       } else if (cfg.type === "equation") {
         try {
@@ -158,7 +171,9 @@ export default function App() {
     const type = draft.type || "equation";
     if (type === "equation") return { type: "equation", expression: draft.expression || "s0 - s1" };
     if (type === "rolling_avg") return { type: "rolling_avg", source: parseInt(draft.source, 10) || 0, window: Math.max(2, parseInt(draft.window, 10) || 20) };
-    return { type, sources: [parseInt(draft.sources?.[0], 10) || 0, parseInt(draft.sources?.[1], 10) || 1] };
+    const base = { type, sources: [parseInt(draft.sources?.[0], 10) || 0, parseInt(draft.sources?.[1], 10) || 1] };
+    if (type === "difference") return { ...base, absDiff: !!draft.absDiff, unwrapDiff: !!draft.unwrapDiff };
+    return base;
   }, []);
 
   const createDerivedPen = useCallback((draft) => {
@@ -169,6 +184,7 @@ export default function App() {
 
     const friendly = type === "rolling_avg" ? `RollingAvg(s${cfg.source}, ${cfg.window})` :
       type === "equation" ? `Eq: ${cfg.expression}` :
+      type === "difference" ? `diff(${(cfg.sources || []).map(s => `s${s}`).join(", ")})${cfg.absDiff ? " abs" : ""}${cfg.unwrapDiff ? " unwrap" : ""}` :
       `${type}(${(cfg.sources || []).map(s => `s${s}`).join(", ")})`;
     const baseName = (draft.name || "").trim() || friendly;
 
@@ -651,6 +667,8 @@ export default function App() {
                             source: cfg.source ?? 0,
                             window: cfg.window ?? 20,
                             sources: cfg.sources || [0, 1],
+                            absDiff: !!cfg.absDiff,
+                            unwrapDiff: !!cfg.unwrapDiff,
                           },
                         });
                       }}
