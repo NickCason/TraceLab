@@ -1,3 +1,5 @@
+import { SIGNAL_PALETTE } from "./colors";
+
 export const THEMES = {
   dark: {
     bg: "#161618", panel: "#1e1e21", chart: "#1a1a1d",
@@ -13,7 +15,7 @@ export const THEMES = {
     dotStroke: "#1a1a1d",
     cardShadow: "0 2px 12px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)",
     panelShadow: "1px 0 8px rgba(0,0,0,0.3)",
-    sigColors: ["#8b8ff5","#f87171","#34d399","#f0b866","#a78bfa","#f472b6","#38bdf8","#fb923c","#a3e635","#818cf8","#2dd4bf","#f43f5e","#22d3ee","#84cc16","#f59e0b","#e879f9","#06b6d4","#10b981","#ef4444","#c084fc","#14b8a6","#f97316","#60a5fa","#eab308"],
+    sigColors: SIGNAL_PALETTE.dark,
   },
   light: {
     bg: "#e4e4e7", panel: "#ebebee", chart: "#f2f2f5",
@@ -29,7 +31,7 @@ export const THEMES = {
     dotStroke: "#f2f2f5",
     cardShadow: "0 2px 8px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.06)",
     panelShadow: "1px 0 6px rgba(0,0,0,0.06)",
-    sigColors: ["#4f52b8","#dc2626","#059669","#b56e10","#6d28d9","#db2777","#0891b2","#ea580c","#65a30d","#4f46e5","#0d9488","#be123c","#0369a1","#4d7c0f","#a16207","#9333ea","#0f766e","#b91c1c","#1d4ed8","#c2410c","#15803d","#7c3aed","#0e7490","#a21caf"],
+    sigColors: SIGNAL_PALETTE.light,
   }
 };
 

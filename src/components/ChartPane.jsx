@@ -17,7 +17,7 @@ function buildDeltaCursor(label, color, isDark) {
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 12 12, crosshair`;
 }
 
-export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth, globalLeftEdgeLabelWidth, showExtrema = false }) {
+export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, referenceOverlays = [], deltaLocked, setDeltaLocked, globalEdgeLabelWidth, globalLeftEdgeLabelWidth, showExtrema = false }) {
   const traceRef = useRef(null), cursorRef = useRef(null), containerRef = useRef(null), panStart = useRef(null), rafPending = useRef(null), pendingIdx = useRef(null);
   const [start, end] = viewRange; const t = THEMES[theme];
   const getPlotValue = useCallback((entry, idx) => {
@@ -161,28 +161,119 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       placedExtrema.push(finalBox);
       return fallback;
     };
+    const overlayYRange = unifyRange && yRanges.length ? yRanges[0] : null;
+    if (referenceOverlays?.length) {
+      referenceOverlays.forEach((ov) => {
+        if (!ov || ov.visible === false) return;
+        const [yMin, yMax] = overlayYRange || yRanges[0] || [0, 1];
+        const yR = yMax - yMin || 1;
+        if (ov.axis === "x") {
+          if (ov.type === "band") {
+            const s1 = Number(ov.sample);
+            const s2 = Number(ov.sampleEnd);
+            if (!Number.isFinite(s1) || !Number.isFinite(s2) || sc <= 0) return;
+            const low = Math.min(s1, s2), high = Math.max(s1, s2);
+            const x1 = pad.left + ((low - start) / sc) * plotW;
+            const x2 = pad.left + ((high - start) / sc) * plotW;
+            if (x2 < pad.left || x1 > pad.left + plotW) return;
+            const drawX = Math.max(pad.left, x1);
+            const drawW = Math.max(1, Math.min(pad.left + plotW, x2) - drawX);
+            ctx.fillStyle = ov.color || t.warn;
+            ctx.globalAlpha = Math.max(0, Math.min(1, Number(ov.opacity) || 0.2));
+            ctx.fillRect(drawX, pad.top, drawW, plotH);
+            if (ov.label) {
+              ctx.globalAlpha = 0.9;
+              ctx.fillStyle = ov.color || t.warn;
+              ctx.font = `bold 10px ${FONT_DISPLAY}`;
+              ctx.fillText(ov.label, Math.max(pad.left + 4, drawX + 4), pad.top + 11);
+            }
+          } else {
+            const s = Number(ov.sample);
+            if (!Number.isFinite(s) || sc <= 0) return;
+            const x = pad.left + ((s - start) / sc) * plotW;
+            if (x < pad.left || x > pad.left + plotW) return;
+            ctx.strokeStyle = ov.color || t.warn;
+            ctx.globalAlpha = 0.9;
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash(ov.dashed ? [6, 4] : []);
+            ctx.beginPath();
+            ctx.moveTo(x, pad.top);
+            ctx.lineTo(x, pad.top + plotH);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (ov.label) {
+              ctx.fillStyle = ov.color || t.warn;
+              ctx.font = `bold 10px ${FONT_DISPLAY}`;
+              ctx.fillText(ov.label, Math.max(pad.left + 4, x + 4), pad.top + 11);
+            }
+          }
+          ctx.globalAlpha = 1;
+          return;
+        }
+        if (ov.type === "band") {
+          const bMin = Number(ov.min);
+          const bMax = Number(ov.max);
+          if (!Number.isFinite(bMin) || !Number.isFinite(bMax)) return;
+          const low = Math.min(bMin, bMax), high = Math.max(bMin, bMax);
+          const y1 = pad.top + plotH - ((high - yMin) / yR) * plotH;
+          const y2 = pad.top + plotH - ((low - yMin) / yR) * plotH;
+          ctx.fillStyle = ov.color || t.warn;
+          ctx.globalAlpha = Math.max(0, Math.min(1, Number(ov.opacity) || 0.2));
+          ctx.fillRect(pad.left, Math.max(pad.top, y1), plotW, Math.min(plotH, y2 - y1));
+          if (ov.label) {
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = ov.color || t.warn;
+            ctx.font = `bold 10px ${FONT_DISPLAY}`;
+            ctx.fillText(ov.label, pad.left + 6, Math.max(pad.top + 11, y1 + 11));
+          }
+        } else if (ov.type === "line") {
+          const val = Number(ov.value);
+          if (!Number.isFinite(val)) return;
+          const y = pad.top + plotH - ((val - yMin) / yR) * plotH;
+          ctx.strokeStyle = ov.color || t.warn;
+          ctx.globalAlpha = 0.9;
+          ctx.lineWidth = 1.2;
+          ctx.setLineDash(ov.dashed ? [6, 4] : []);
+          ctx.beginPath();
+          ctx.moveTo(pad.left, y);
+          ctx.lineTo(pad.left + plotW, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          if (ov.label) {
+            ctx.fillStyle = ov.color || t.warn;
+            ctx.font = `bold 10px ${FONT_DISPLAY}`;
+            ctx.fillText(ov.label, pad.left + 6, Math.max(pad.top + 10, y - 4));
+          }
+        }
+        ctx.globalAlpha = 1;
+      });
+    }
+
     signalEntries.forEach((entry, si) => {
-      const { signal, color, dash } = entry;
+      const { signal, color, dash, strokeMode, thickness, opacity } = entry;
       const [yMin, yMax] = yRanges[si]; const yR = yMax - yMin;
       let minV = Infinity, maxV = -Infinity, minIdx = -1, maxIdx = -1;
-      ctx.strokeStyle = color; ctx.lineWidth = signal.isDigital ? 2 : 1.5; ctx.globalAlpha = 0.9;
-      if (dash === "dashed") ctx.setLineDash([6, 4]);
-      else if (dash === "dotted") ctx.setLineDash([2, 3]);
-      else if (dash === "long_dash") ctx.setLineDash([12, 6]);
-      else if (dash === "dash_dot") ctx.setLineDash([10, 4, 2, 4]);
-      else if (dash === "dash_dot_dot") ctx.setLineDash([10, 4, 2, 3, 2, 4]);
+      const activeMode = strokeMode || dash || "solid";
+      const strokePx = Math.max(0.8, Number(thickness) || (signal.isDigital ? 2 : 1.5));
+      const strokeAlpha = Math.max(0.1, Math.min(1, Number(opacity) || 0.9));
+      ctx.strokeStyle = color; ctx.lineWidth = strokePx; ctx.globalAlpha = strokeAlpha;
+      if (activeMode === "dashed") ctx.setLineDash([6, 4]);
+      else if (activeMode === "dotted") ctx.setLineDash([2, 3]);
+      else if (activeMode === "long_dash") ctx.setLineDash([12, 6]);
+      else if (activeMode === "dash_dot") ctx.setLineDash([10, 4, 2, 4]);
+      else if (activeMode === "dash_dot_dot") ctx.setLineDash([10, 4, 2, 3, 2, 4]);
       else ctx.setLineDash([]);
 
-      if (dash === "samples") {
+      if (activeMode === "samples") {
         for (let i = start; i < end; i += stride) {
           const v = getPlotValue(entry, i); if (v === null) continue;
           if (v < minV) { minV = v; minIdx = i; }
           if (v > maxV) { maxV = v; maxIdx = i; }
           const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
           ctx.beginPath();
-          ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+          ctx.arc(x, y, Math.max(1.4, strokePx * 0.95), 0, Math.PI * 2);
           ctx.fillStyle = color;
-          ctx.globalAlpha = 0.92;
+          ctx.globalAlpha = strokeAlpha;
           ctx.fill();
         }
       } else {
@@ -197,6 +288,18 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
+        if (activeMode === "hybrid_line_points") {
+          const markerStride = Math.max(stride, Math.floor((end - start) / Math.max(30, plotW / 10)));
+          ctx.fillStyle = color;
+          ctx.globalAlpha = Math.min(1, strokeAlpha + 0.05);
+          for (let i = start; i < end; i += markerStride) {
+            const v = getPlotValue(entry, i); if (v === null) continue;
+            const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
+            ctx.beginPath();
+            ctx.arc(x, y, Math.max(1.6, strokePx * 0.9), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       }
       if (showExtrema && minIdx !== -1 && maxIdx !== -1) {
         const drawExtremaBadge = (idx, value, kind) => {
@@ -330,7 +433,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       drawEdge("right");
     }
     ctx.strokeStyle = t.border; ctx.lineWidth = 1; ctx.strokeRect(pad.left, pad.top, plotW, plotH);
-  }, [signalEntries, yRanges, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues, showExtrema, getPlotValue]);
+  }, [signalEntries, yRanges, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues, showExtrema, getPlotValue, referenceOverlays, unifyRange]);
 
   const drawCursors = useCallback(() => {
     const canvas = cursorRef.current; if (!canvas || !traceRef.current) return;
