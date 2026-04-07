@@ -9,6 +9,7 @@ import Toast from "./components/Toast";
 import DerivedPenDialog from "./components/DerivedPenDialog";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "./constants/theme";
 import { GROUP_COLORS_DARK, GROUP_COLORS_LIGHT, GROUP_LABELS, MAX_GROUPS } from "./constants/groups";
+import { getAutoSignalColor, OVERLAY_COLOR_SWATCHES } from "./constants/colors";
 import { parseStudio5000CSV } from "./utils/parser";
 import { fmtDate, fmtDateISO, fmtTime, fmtTsClean } from "./utils/date";
 import { computeStats } from "./utils/stats";
@@ -96,6 +97,7 @@ export default function App() {
   const [groups, setGroups] = useState([]);     // NEW: replaces isolated[]
   const [groupNames, setGroupNames] = useState({});  // custom group names: { 1: "Drives", 2: "Flags", ... }
   const [signalStyles, setSignalStyles] = useState({}); // per-signal overrides: { [idx]: { color, dash } }
+  const [referenceOverlays, setReferenceOverlays] = useState({}); // { [groupIdx]: [{ id, type, ... }] }
   const [cursorIdx, setCursorIdx] = useState(null);
   const [cursor2Idx, setCursor2Idx] = useState(null);
   const [deltaMode, setDeltaMode] = useState(false);
@@ -225,7 +227,7 @@ export default function App() {
     setGroups(g => [...g, parseInt(draft.groupIdx, 10) || 1]);
     setMetadata(m => ({ ...m, [nextIdx]: { ...(m[nextIdx] || {}), displayName: baseName } }));
     const targetGroup = parseInt(draft.groupIdx, 10) || 1;
-    setSignalStyles(s => ({ ...s, [nextIdx]: { color: gc[(targetGroup - 1) % gc.length], dash: "dashed" } }));
+    setSignalStyles(s => ({ ...s, [nextIdx]: { color: gc[(targetGroup - 1) % gc.length], dash: "dashed", strokeMode: "dashed", thickness: 1.8, opacity: 0.95 } }));
     showToast(`Derived pen added to Group ${targetGroup}`, "success");
   }, [data, derivedConfigs, recomputeDerivedSignals, gc, showToast, toDerivedCfg]);
 
@@ -303,6 +305,7 @@ export default function App() {
         setCursor2Idx(null);
         setMetadata({});
         setSignalStyles({});
+        setReferenceOverlays({});
         setDerivedConfigs({});
         setRebaseOffset(0);
         setRebaseInput("");
@@ -322,7 +325,7 @@ export default function App() {
         setGroups(parsed.signals.map((_, i) => (i % MAX_GROUPS) + 1));
         setViewRange([0, parsed.timestamps.length]);
         setCursorIdx(null); setCursor2Idx(null);
-        setMetadata({}); setSignalStyles({}); setDerivedConfigs({}); setRebaseOffset(0); setRebaseInput("");
+        setMetadata({}); setSignalStyles({}); setReferenceOverlays({}); setDerivedConfigs({}); setRebaseOffset(0); setRebaseInput("");
         showToast(`Loaded ${parsed.tagNames.length} tags, ${parsed.timestamps.length.toLocaleString()} samples`, "success");
       } else showToast("Failed to parse CSV — unsupported format", "error");
     };
@@ -340,6 +343,24 @@ export default function App() {
   const resetZoom = () => { if (data) setViewRange([0, data.timestamps.length]); };
   const getDisplayName = (i) => metadata[i]?.displayName || data?.tagNames[i] || `Signal ${i}`;
   const getGroupLabel = (g) => groupNames[g] || `Group ${GROUP_LABELS[g - 1]}`;
+  const addOverlay = useCallback((groupIdx, type = "line") => {
+    const overlay = type === "band"
+      ? { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "band", visible: true, min: 0, max: 10, label: "Band", color: OVERLAY_COLOR_SWATCHES[groupIdx % OVERLAY_COLOR_SWATCHES.length], opacity: 0.2 }
+      : { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "line", visible: true, value: 0, label: "Reference", color: OVERLAY_COLOR_SWATCHES[groupIdx % OVERLAY_COLOR_SWATCHES.length], dashed: true, opacity: 1 };
+    setReferenceOverlays(prev => ({ ...prev, [groupIdx]: [...(prev[groupIdx] || []), overlay] }));
+  }, []);
+  const updateOverlay = useCallback((groupIdx, overlayId, updates) => {
+    setReferenceOverlays(prev => ({
+      ...prev,
+      [groupIdx]: (prev[groupIdx] || []).map(o => o.id === overlayId ? { ...o, ...updates } : o),
+    }));
+  }, []);
+  const deleteOverlay = useCallback((groupIdx, overlayId) => {
+    setReferenceOverlays(prev => ({
+      ...prev,
+      [groupIdx]: (prev[groupIdx] || []).filter(o => o.id !== overlayId),
+    }));
+  }, []);
   const toggleGroup = useCallback((groupIdx) => {
     if (!data) return;
     const members = []; data.signals.forEach((_, i) => { if (groups[i] === groupIdx) members.push(i); });
@@ -361,8 +382,11 @@ export default function App() {
       if (!visible[i]) return;
       const g = groups[i] || 1;
       if (!paneMap.has(g)) paneMap.set(g, []);
-      const baseColor = signalStyles[i]?.color || sc[i % sc.length];
+      const baseColor = signalStyles[i]?.color || getAutoSignalColor(theme, i) || sc[i % sc.length];
       const baseDash = signalStyles[i]?.dash || "solid";
+      const baseStrokeMode = signalStyles[i]?.strokeMode || baseDash || "solid";
+      const baseThickness = Math.max(0.6, Number(signalStyles[i]?.thickness) || (signal.isDigital ? 2 : 1.5));
+      const baseOpacity = Math.max(0.1, Math.min(1, Number(signalStyles[i]?.opacity) || 0.92));
       const seamCfg = resolveSignalSeam(signalStyles[i], signal.values);
 
       // Original signal entry (unless hidden by hideOriginal)
@@ -372,6 +396,9 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: baseDash,
+          strokeMode: baseStrokeMode,
+          thickness: baseThickness,
+          opacity: baseOpacity,
           seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
           isAvg: !!signal.isDerived,
         });
@@ -404,6 +431,9 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: "dashed",
+          strokeMode: "dashed",
+          thickness: Math.max(0.6, baseThickness * 0.9),
+          opacity: Math.max(0.2, baseOpacity - 0.1),
           seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
           isAvg: true,
           parentIndex: i,
@@ -419,7 +449,7 @@ export default function App() {
       panes.push({ id: `group-${g}`, entries, label: getGroupLabel(g), groupIdx: g });
     }
     return panes;
-  }, [data, visible, groups, metadata, groupNames, signalStyles, t.sigColors, avgWindow, hideOriginal]);
+  }, [data, visible, groups, metadata, groupNames, signalStyles, t.sigColors, avgWindow, hideOriginal, theme]);
 
   // Compute a global max edge label width across ALL panes so x-axes align
   const globalEdgeLabelWidth = useMemo(() => {
@@ -467,11 +497,11 @@ export default function App() {
 
   const saveProject = useCallback(() => {
     if (!data) return;
-    const project = { version: 4, data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
+    const project = { version: 5, data, visible, groups, groupNames, signalStyles, metadata, referenceOverlays, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
     const blob = new Blob([JSON.stringify(project)], { type: "application/json" });
     const filename = `${(data.meta.trendName || "project").replace(/\s+/g, "_")}.tracelab`;
     downloadBlob(blob, filename, () => showToast("Project saved", "success"));
-  }, [data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs, showToast]);
+  }, [data, visible, groups, groupNames, signalStyles, metadata, referenceOverlays, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs, showToast]);
 
   const loadProject = useCallback((file) => {
     const reader = new FileReader();
@@ -488,7 +518,7 @@ export default function App() {
           }
           else if (proj.isolated) setGroups(proj.isolated.map((iso, i) => iso ? (i % MAX_GROUPS) + 1 : 1));
           else setGroups(proj.data.signals.map((_, i) => (i % MAX_GROUPS) + 1));
-          setMetadata(proj.metadata || {}); setGroupNames(proj.groupNames || {}); setSignalStyles(proj.signalStyles || {}); setViewRange(proj.viewRange || [0, proj.data.timestamps.length]);
+          setMetadata(proj.metadata || {}); setGroupNames(proj.groupNames || {}); setSignalStyles(proj.signalStyles || {}); setReferenceOverlays(proj.referenceOverlays || {}); setViewRange(proj.viewRange || [0, proj.data.timestamps.length]);
           const loadedDerived = proj.derivedConfigs || {};
           setDerivedConfigs(loadedDerived);
           if (Object.keys(loadedDerived).length > 0) {
@@ -612,7 +642,7 @@ export default function App() {
   }
 
   const sc = t.sigColors;
-  const getSignalColor = (i) => signalStyles[i]?.color || sc[i % sc.length];
+  const getSignalColor = (i) => signalStyles[i]?.color || getAutoSignalColor(theme, i) || sc[i % sc.length];
   const tabSt = (active, accent) => ({ padding: "8px 0", fontSize: 10, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", cursor: "pointer", background: "none", border: "none", borderBottom: `2px solid ${active ? (accent || t.accent) : "transparent"}`, color: active ? (accent || t.text1) : t.text3, transition: "all 0.15s", fontFamily: FONT_DISPLAY, flex: 1, textAlign: "center", whiteSpace: "nowrap" });
 
   return (
@@ -670,6 +700,7 @@ export default function App() {
                       metadata={metadata}
                       data={data}
                       signalStyles={signalStyles}
+                      referenceOverlays={referenceOverlays[g] || []}
                       derivedConfigs={derivedConfigs}
                       onDrop={(sigIdx, targetGroup) => setGroup(sigIdx, targetGroup)}
                       onToggleVisible={toggleSignal}
@@ -698,15 +729,24 @@ export default function App() {
                       }}
                       onDeleteDerived={deleteDerivedPen}
                       onSetGroupName={(g, name) => setGroupNames(prev => { const n = { ...prev }; if (name) n[g] = name; else delete n[g]; return n; })}
+                      onAddOverlay={(groupIdx, type) => addOverlay(groupIdx, type)}
+                      onUpdateOverlay={updateOverlay}
+                      onDeleteOverlay={deleteOverlay}
                       onStyleChange={(idx, updates) => setSignalStyles(prev => {
                         const cur = prev[idx] || {};
                         const next = { ...cur };
                         if (updates.color !== undefined) next.color = updates.color;
                         if (updates.dash !== undefined) next.dash = updates.dash;
+                        if (updates.strokeMode !== undefined) {
+                          next.strokeMode = updates.strokeMode;
+                          next.dash = updates.strokeMode;
+                        }
+                        if (updates.thickness !== undefined) next.thickness = updates.thickness;
+                        if (updates.opacity !== undefined) next.opacity = updates.opacity;
                         if (updates.seamOffset !== undefined) next.seamOffset = updates.seamOffset;
                         if (updates.seamOffsetPct !== undefined) next.seamOffsetPct = updates.seamOffsetPct;
                         // If both null, remove override entirely
-                        if (!next.color && !next.dash && !next.seamOffset && !next.seamOffsetPct) { const n = { ...prev }; delete n[idx]; return n; }
+                        if (!next.color && !next.dash && !next.strokeMode && !next.seamOffset && !next.seamOffsetPct && !next.thickness && !next.opacity) { const n = { ...prev }; delete n[idx]; return n; }
                         return { ...prev, [idx]: next };
                       })}
                       theme={theme}
@@ -855,6 +895,7 @@ export default function App() {
                       showTimeAxis={pi === chartPanes.length - 1} label={paneGc ? null : pane.label} compact={chartPanes.length > 2}
                       theme={theme} rebaseOffset={rebaseOffset}
                       groupColor={paneGc} showPills={showPills} showEdgeValues={showEdgeValues} unifyRange={!splitRanges[pane.groupIdx]}
+                      referenceOverlays={referenceOverlays[pane.groupIdx] || []}
                       deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} globalLeftEdgeLabelWidth={globalLeftEdgeLabelWidth} showExtrema={showExtrema} />
                   </div>
                 </div>
