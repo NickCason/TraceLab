@@ -74,7 +74,6 @@ export default function App() {
   const [avgWindow, setAvgWindow] = useState({}); // { [signalIdx]: number } — moving average window size (0 = off)
   const [hideOriginal, setHideOriginal] = useState({}); // { [signalIdx]: true } — hide original when avg shown
   const [derivedConfigs, setDerivedConfigs] = useState({}); // { [signalIdx]: { type, ...params } }
-  const [derivedPresetByGroup, setDerivedPresetByGroup] = useState({}); // { [groupIdx]: "equation" | "rolling_avg" | ... }
   const [derivedDialog, setDerivedDialog] = useState({ open: false, mode: "create", groupIdx: 1, type: "equation", editIdx: null, initialDraft: null });
   const [viewRange, setViewRange] = useState([0, 0]);
   const [activePanel, setActivePanel] = useState("signals");
@@ -253,7 +252,6 @@ export default function App() {
         setMetadata({});
         setSignalStyles({});
         setDerivedConfigs({});
-        setDerivedPresetByGroup({});
         setRebaseOffset(0);
         setRebaseInput("");
         showToast(`Loaded default CSV: ${parsed.tagNames.length} tags`, "success");
@@ -272,7 +270,7 @@ export default function App() {
         setGroups(parsed.signals.map((_, i) => (i % MAX_GROUPS) + 1));
         setViewRange([0, parsed.timestamps.length]);
         setCursorIdx(null); setCursor2Idx(null);
-        setMetadata({}); setSignalStyles({}); setDerivedConfigs({}); setDerivedPresetByGroup({}); setRebaseOffset(0); setRebaseInput("");
+        setMetadata({}); setSignalStyles({}); setDerivedConfigs({}); setRebaseOffset(0); setRebaseInput("");
         showToast(`Loaded ${parsed.tagNames.length} tags, ${parsed.timestamps.length.toLocaleString()} samples`, "success");
       } else showToast("Failed to parse CSV — unsupported format", "error");
     };
@@ -419,7 +417,6 @@ export default function App() {
           setMetadata(proj.metadata || {}); setGroupNames(proj.groupNames || {}); setSignalStyles(proj.signalStyles || {}); setViewRange(proj.viewRange || [0, proj.data.timestamps.length]);
           const loadedDerived = proj.derivedConfigs || {};
           setDerivedConfigs(loadedDerived);
-          setDerivedPresetByGroup({});
           if (Object.keys(loadedDerived).length > 0) {
             proj.data = recomputeDerivedSignals(proj.data, loadedDerived);
           }
@@ -743,20 +740,8 @@ export default function App() {
                         </span>
                       ))}
                       <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                        <select
-                          value={derivedPresetByGroup[pane.groupIdx] || "equation"}
-                          onChange={(e) => setDerivedPresetByGroup(prev => ({ ...prev, [pane.groupIdx]: e.target.value }))}
-                          style={{ height: 20, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 4, color: t.text2, fontSize: 11, fontFamily: FONT_MONO }}
-                          title="Derived pen type"
-                        >
-                          <option value="equation">Equation</option>
-                          <option value="rolling_avg">Rolling Avg</option>
-                          <option value="difference">Difference</option>
-                          <option value="sum">Sum</option>
-                          <option value="ratio">Ratio</option>
-                        </select>
                         <button
-                          onClick={() => setDerivedDialog({ open: true, mode: "create", groupIdx: pane.groupIdx, type: derivedPresetByGroup[pane.groupIdx] || "equation", editIdx: null, initialDraft: null })}
+                          onClick={() => setDerivedDialog({ open: true, mode: "create", groupIdx: pane.groupIdx, type: "equation", editIdx: null, initialDraft: null })}
                           style={{ padding: "1px 6px", borderRadius: 4, border: `1px solid ${paneGc}66`, background: paneGc + "22", color: paneGc, fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, cursor: "pointer" }}
                           title="Add derived pen to this chart"
                         >
