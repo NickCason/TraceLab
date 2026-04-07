@@ -357,7 +357,7 @@ export default function App() {
         sampleEnd: 100,
         label: axis === "x" ? "Sample Band" : "Band",
         color: OVERLAY_COLOR_SWATCHES[groupIdx % OVERLAY_COLOR_SWATCHES.length],
-        opacity: 0.2,
+        opacity: 0.12,
       }
       : {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -920,6 +920,7 @@ export default function App() {
                       theme={theme} rebaseOffset={rebaseOffset}
                       groupColor={paneGc} showPills={showPills} showEdgeValues={showEdgeValues} unifyRange={!splitRanges[pane.groupIdx]}
                       referenceOverlays={referenceOverlays[pane.groupIdx] || []}
+                      onOverlayChange={(overlayId, updates) => updateOverlay(pane.groupIdx, overlayId, updates)}
                       deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} globalLeftEdgeLabelWidth={globalLeftEdgeLabelWidth} showExtrema={showExtrema} />
                   </div>
                 </div>

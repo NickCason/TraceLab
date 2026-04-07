@@ -174,7 +174,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
             <div key={ov.id} style={{ display: "grid", gridTemplateColumns: "16px 1fr 54px 28px", gap: 4, alignItems: "center", marginBottom: 3, padding: "4px 5px", borderRadius: 6, border: `1px solid ${t.borderSubtle}`, background: t.surface }}>
               <input type="checkbox" checked={ov.visible !== false} onChange={(e) => onUpdateOverlay?.(groupIdx, ov.id, { visible: e.target.checked })} />
               <input value={ov.label || ""} onChange={(e) => onUpdateOverlay?.(groupIdx, ov.id, { label: e.target.value })} placeholder={ov.type === "band" ? "Band" : "Line"} style={{ width: "100%", background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 5, color: t.text1, fontSize: 11, padding: "2px 5px", fontFamily: FONT_MONO }} />
-              <input type="number" step="any" value={ov.axis === "x" ? (ov.sample ?? 0) : (ov.type === "band" ? (ov.min ?? 0) : (ov.value ?? 0))} onChange={(e) => onUpdateOverlay?.(groupIdx, ov.id, ov.axis === "x" ? { sample: parseFloat(e.target.value) || 0 } : (ov.type === "band" ? { min: parseFloat(e.target.value) || 0 } : { value: parseFloat(e.target.value) || 0 }))} style={{ width: "100%", background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 5, color: t.text1, fontSize: 11, padding: "2px 4px", fontFamily: FONT_MONO }} />
+              <input type="number" step={ov.axis === "x" ? "1" : "0.001"} value={ov.axis === "x" ? (ov.sample ?? 0) : (ov.type === "band" ? (ov.min ?? 0) : (ov.value ?? 0))} onChange={(e) => onUpdateOverlay?.(groupIdx, ov.id, ov.axis === "x" ? { sample: parseFloat(e.target.value) || 0 } : (ov.type === "band" ? { min: parseFloat(e.target.value) || 0 } : { value: parseFloat(e.target.value) || 0 }))} style={{ width: "100%", background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 5, color: t.text1, fontSize: 11, padding: "2px 4px", fontFamily: FONT_MONO }} />
               <button onClick={() => onDeleteOverlay?.(groupIdx, ov.id)} style={{ fontSize: 11, borderRadius: 5, border: `1px solid ${t.red}55`, background: `${t.red}14`, color: t.red, cursor: "pointer", height: 22 }}>×</button>
               <div />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, gridColumn: "2 / span 3" }}>
@@ -190,7 +190,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, gridColumn: "2 / span 3" }}>
                     <input
                       type="number"
-                      step="any"
+                      step={ov.axis === "x" ? "1" : "0.001"}
                       value={ov.axis === "x" ? (ov.sampleEnd ?? 100) : (ov.max ?? 10)}
                       onChange={(e) => onUpdateOverlay?.(groupIdx, ov.id, ov.axis === "x" ? { sampleEnd: parseFloat(e.target.value) || 0 } : { max: parseFloat(e.target.value) || 0 })}
                       placeholder={ov.axis === "x" ? "sample end" : "max"}
@@ -206,7 +206,11 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
                       style={{ width: "100%", background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 5, color: t.text1, fontSize: 11, padding: "2px 4px", fontFamily: FONT_MONO }}
                       title="Sample index (integer)"
                     />
-                    <input type="number" min="0" max="1" step="0.05" value={ov.opacity ?? 0.2} onChange={(e) => onUpdateOverlay?.(groupIdx, ov.id, { opacity: Math.max(0, Math.min(1, parseFloat(e.target.value) || 0.2)) })} style={{ width: "100%", background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 5, color: t.text1, fontSize: 11, padding: "2px 4px", fontFamily: FONT_MONO }} />
+                    <input type="number" min="0" max="1" step="0.01" value={ov.opacity ?? 0.12} onChange={(e) => onUpdateOverlay?.(groupIdx, ov.id, { opacity: Math.max(0, Math.min(1, parseFloat(e.target.value) || 0.12)) })} style={{ width: "100%", background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 5, color: t.text1, fontSize: 11, padding: "2px 4px", fontFamily: FONT_MONO }} />
+                  </div>
+                  <div />
+                  <div style={{ gridColumn: "2 / span 3" }}>
+                    <input type="range" min="0" max="1" step="0.01" value={ov.opacity ?? 0.12} onChange={(e) => onUpdateOverlay?.(groupIdx, ov.id, { opacity: Math.max(0, Math.min(1, parseFloat(e.target.value) || 0.12)) })} style={{ width: "100%" }} />
                   </div>
                 </>
               ) : (
