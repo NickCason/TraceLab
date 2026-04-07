@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
+import { SIGNAL_SWATCHES } from "../constants/colors";
 import Sparkline from "./Sparkline";
 import MarqueeText from "./MarqueeText";
 import { clampSeamPercent, inferSeamDomain, seamOffsetToPercent, snapSeamPercent } from "../utils/seamAdjustment";
 
-export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, seamOffsetPct, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
+export default function SignalCard({ index, signal, color, dash, strokeMode = "solid", thickness = 1.5, opacity = 0.92, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, seamOffsetPct, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
   const t = THEMES[theme];
   const hasCustomName = displayName !== tagName;
   const [showStylePicker, setShowStylePicker] = useState(false);
@@ -41,8 +42,9 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
     { value: "dash_dot", label: "— · —", desc: "Dash Dot" },
     { value: "dash_dot_dot", label: "— ·· —", desc: "Dash Dot Dot" },
     { value: "samples", label: "• • •", desc: "Samples Only" },
+    { value: "hybrid_line_points", label: "— • —", desc: "Line + Points" },
   ];
-  const PALETTE = ["#7c8cf5","#f87171","#34d399","#f0b866","#a78bfa","#f472b6","#38bdf8","#fb923c","#a3e635","#818cf8","#2dd4bf","#f43f5e","#22d3ee","#84cc16","#f59e0b","#e879f9","#06b6d4","#10b981","#ef4444","#c084fc","#14b8a6","#f97316","#60a5fa","#eab308","#e8e4df","#9d97a0"];
+  const PALETTE = SIGNAL_SWATCHES;
   const seamDomain = inferSeamDomain(signal.values);
   const effectiveSeamPct = seamOffsetPct !== undefined ? clampSeamPercent(seamOffsetPct) : seamOffsetToPercent(seamOffset, seamDomain.span);
 
@@ -67,22 +69,28 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
         position: "relative", overflow: "visible",
       }}
     >
-      {/* Visibility toggle */}
-      <div onClick={(e) => { e.stopPropagation(); onToggleVisible(index); }} style={{
-        width: 12, height: 12, borderRadius: 3, flexShrink: 0, cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        border: `1.5px solid ${vis ? color : t.text4}`,
-        background: vis ? color + "33" : "transparent",
-        transition: "all 0.15s",
-      }} title={vis ? "Hide signal" : "Show signal"}>
-        {vis && <svg width="7" height="7" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center", flexShrink: 0 }}>
+        {/* Visibility toggle */}
+        <div onClick={(e) => { e.stopPropagation(); onToggleVisible(index); }} style={{
+          width: 12, height: 12, borderRadius: 3, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: `1.5px solid ${vis ? color : t.text4}`,
+          background: vis ? color + "33" : "transparent",
+          transition: "all 0.15s",
+        }} title={vis ? "Hide signal" : "Show signal"}>
+          {vis && <svg width="7" height="7" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+        </div>
+        {/* Color/style picker trigger */}
+        <div onClick={(e) => { e.stopPropagation(); setShowStylePicker(!showStylePicker); }} style={{
+          width: 12, height: 12, borderRadius: 3, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: vis ? color : t.text4,
+          boxShadow: vis ? `0 0 4px ${color}33` : "none", transition: "all 0.15s",
+          border: `1px solid ${vis ? color + "55" : t.border}`,
+        }} title="Signal settings">
+          <span style={{ fontSize: 10, lineHeight: "10px", fontWeight: 700 }}>⚙</span>
+        </div>
       </div>
-      {/* Color/style picker trigger */}
-      <div onClick={(e) => { e.stopPropagation(); setShowStylePicker(!showStylePicker); }} style={{
-        width: 10, height: 10, borderRadius: 2, flexShrink: 0, cursor: "pointer",
-        background: vis ? color : t.border,
-        boxShadow: vis ? `0 0 4px ${color}44` : "none", transition: "all 0.15s",
-      }} title="Change color/style" />
       <div onClick={(e) => { e.stopPropagation(); onToggleVisible(index); }} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
         <MarqueeText style={{ fontSize: 13, fontWeight: 600, color: vis ? t.text1 : t.text3, display: "flex", alignItems: "center", gap: 3 }}>
           {displayName}
@@ -119,7 +127,7 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
           <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 8 }}>
             {PALETTE.map(c => (
               <div key={c} onClick={() => { onStyleChange(index, { color: c }); }} style={{
-                width: 14, height: 14, borderRadius: 3, background: c, cursor: "pointer",
+                width: 15, height: 15, borderRadius: 4, background: c, cursor: "pointer",
                 border: c === color ? `2px solid ${t.text1}` : `1px solid ${t.border}`,
                 boxShadow: c === color ? `0 0 6px ${c}66` : "none",
               }} />
@@ -128,14 +136,24 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
           <div style={{ fontSize: 12, color: t.text3, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4, fontFamily: FONT_DISPLAY }}>Line Style</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 3 }}>
             {DASH_OPTIONS.map(d => (
-              <button key={d.value} title={d.desc} onClick={() => { onStyleChange(index, { dash: d.value }); }} style={{
+              <button key={d.value} title={d.desc} onClick={() => { onStyleChange(index, { dash: d.value, strokeMode: d.value }); }} style={{
                 padding: "3px 0", fontSize: 12, fontFamily: FONT_MONO, fontWeight: 600,
-                cursor: "pointer", borderRadius: 6, border: `1px solid ${dash === d.value ? color + "66" : t.border}`,
-                background: dash === d.value ? color + "18" : t.surface, color: dash === d.value ? color : t.text3,
+                cursor: "pointer", borderRadius: 6, border: `1px solid ${(strokeMode || dash) === d.value ? color + "66" : t.border}`,
+                background: (strokeMode || dash) === d.value ? color + "18" : t.surface, color: (strokeMode || dash) === d.value ? color : t.text3,
               }}>{d.label}</button>
             ))}
           </div>
-          <div onClick={() => { onStyleChange(index, { color: null, dash: null, seamOffset: 0, seamOffsetPct: 0 }); setShowStylePicker(false); }} style={{
+          <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: t.text3, fontFamily: FONT_DISPLAY }}>
+              <span>Thickness</span><span style={{ color: t.text2, fontFamily: FONT_MONO }}>{thickness.toFixed(1)}px</span>
+            </div>
+            <input type="range" min="0.8" max="5" step="0.2" value={thickness} onChange={(e) => onStyleChange(index, { thickness: parseFloat(e.target.value) || 1.5 })} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: t.text3, fontFamily: FONT_DISPLAY }}>
+              <span>Opacity</span><span style={{ color: t.text2, fontFamily: FONT_MONO }}>{Math.round(opacity * 100)}%</span>
+            </div>
+            <input type="range" min="0.1" max="1" step="0.05" value={opacity} onChange={(e) => onStyleChange(index, { opacity: Math.max(0.1, Math.min(1, parseFloat(e.target.value) || 0.92)) })} />
+          </div>
+          <div onClick={() => { onStyleChange(index, { color: null, dash: null, strokeMode: null, thickness: null, opacity: null, seamOffset: 0, seamOffsetPct: 0 }); setShowStylePicker(false); }} style={{
             marginTop: 6, fontSize: 12, color: t.text4, cursor: "pointer", textAlign: "center", fontFamily: FONT_DISPLAY,
           }}>Reset to default</div>
           {!isDigital && (
