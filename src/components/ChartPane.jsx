@@ -163,6 +163,30 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     };
     const overlayYRange = unifyRange && yRanges.length ? yRanges[0] : null;
     if (referenceOverlays?.length) {
+      const placedOverlayLabels = [];
+      const intersectsLabel = (a, b) => !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
+      const drawOverlayLabel = (text, prefX, prefY, color) => {
+        if (!text) return;
+        ctx.font = `bold 10px ${FONT_DISPLAY}`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        const tw = ctx.measureText(text).width;
+        const w = tw + 6;
+        const h = 12;
+        let x = Math.max(pad.left + 2, Math.min(pad.left + plotW - w - 2, prefX));
+        let y = Math.max(pad.top + 7, Math.min(pad.top + plotH - 7, prefY));
+        for (let i = 0; i < 8; i++) {
+          const box = { x, y: y - h / 2, w, h };
+          if (!placedOverlayLabels.some((p) => intersectsLabel(box, p))) {
+            placedOverlayLabels.push(box);
+            break;
+          }
+          y = Math.min(pad.top + plotH - 7, y + h + 2);
+        }
+        ctx.fillStyle = color || t.warn;
+        ctx.fillText(text, x + 3, y);
+        ctx.textBaseline = "alphabetic";
+      };
       const drawOverlayHandle = (hx, hy, color) => {
         ctx.fillStyle = t.chart; ctx.globalAlpha = 0.95;
         ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.fill();
@@ -189,9 +213,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             ctx.fillRect(drawX, pad.top, drawW, plotH);
             if (ov.label) {
               ctx.globalAlpha = 0.9;
-              ctx.fillStyle = ov.color || t.warn;
-              ctx.font = `bold 10px ${FONT_DISPLAY}`;
-              ctx.fillText(ov.label, Math.max(pad.left + 6, drawX + 8), pad.top + 16);
+              drawOverlayLabel(ov.label, Math.max(pad.left + 6, drawX + 8), pad.top + 16, ov.color || t.warn);
             }
             drawOverlayHandle(drawX, pad.top + 4, ov.color || t.warn);
             drawOverlayHandle(drawX + drawW, pad.top + 4, ov.color || t.warn);
@@ -210,9 +232,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             ctx.stroke();
             ctx.setLineDash([]);
             if (ov.label) {
-              ctx.fillStyle = ov.color || t.warn;
-              ctx.font = `bold 10px ${FONT_DISPLAY}`;
-              ctx.fillText(ov.label, Math.max(pad.left + 6, x + 8), pad.top + 16);
+              drawOverlayLabel(ov.label, Math.max(pad.left + 6, x + 8), pad.top + 16, ov.color || t.warn);
             }
             drawOverlayHandle(x, pad.top + 4, ov.color || t.warn);
           }
@@ -231,9 +251,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.fillRect(pad.left, Math.max(pad.top, y1), plotW, Math.min(plotH, y2 - y1));
           if (ov.label) {
             ctx.globalAlpha = 0.9;
-            ctx.fillStyle = ov.color || t.warn;
-            ctx.font = `bold 10px ${FONT_DISPLAY}`;
-            ctx.fillText(ov.label, pad.left + 8, Math.max(pad.top + 14, y1 + 14));
+            drawOverlayLabel(ov.label, pad.left + 8, Math.max(pad.top + 14, y1 + 14), ov.color || t.warn);
           }
           drawOverlayHandle(pad.left + plotW - 4, y1, ov.color || t.warn);
           drawOverlayHandle(pad.left + plotW - 4, y2, ov.color || t.warn);
@@ -251,9 +269,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.stroke();
           ctx.setLineDash([]);
           if (ov.label) {
-            ctx.fillStyle = ov.color || t.warn;
-            ctx.font = `bold 10px ${FONT_DISPLAY}`;
-            ctx.fillText(ov.label, pad.left + 8, Math.max(pad.top + 14, y - 8));
+            drawOverlayLabel(ov.label, pad.left + 8, Math.max(pad.top + 14, y - 8), ov.color || t.warn);
           }
           drawOverlayHandle(pad.left + plotW - 4, y, ov.color || t.warn);
         }

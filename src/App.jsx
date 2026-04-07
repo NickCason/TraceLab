@@ -352,9 +352,14 @@ export default function App() {
     const bandHalfSamples = Math.max(2, Math.round(span * 0.12));
     let vMin = 0, vMax = 10;
     if (data?.signals?.length) {
+      const groupMembers = [];
+      data.signals.forEach((_, i) => {
+        if ((groups[i] || 1) === groupIdx && visible[i]) groupMembers.push(i);
+      });
+      const targetMembers = splitRanges[groupIdx] ? groupMembers.slice(0, 1) : groupMembers;
       let mn = Infinity; let mx = -Infinity;
-      data.signals.forEach((sig, i) => {
-        if ((groups[i] || 1) !== groupIdx || !visible[i]) return;
+      targetMembers.forEach((i) => {
+        const sig = data.signals[i];
         for (let s = start; s < end; s++) {
           const val = sig.values?.[s];
           if (val === null || val === undefined || Number.isNaN(val)) continue;
@@ -397,7 +402,7 @@ export default function App() {
         opacity: 1,
       };
     setReferenceOverlays(prev => ({ ...prev, [groupIdx]: [...(prev[groupIdx] || []), overlay] }));
-  }, [data, groups, visible, viewRange]);
+  }, [data, groups, visible, viewRange, splitRanges]);
   const updateOverlay = useCallback((groupIdx, overlayId, updates) => {
     setReferenceOverlays(prev => ({
       ...prev,
