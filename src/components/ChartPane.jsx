@@ -3,6 +3,17 @@ import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { fmtTime } from "../utils/date";
 import { arrayMinMax } from "../utils/stats";
 
+function buildDeltaCursor(label, color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+    <line x1="12" y1="1" x2="12" y2="23" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="1" y1="12" x2="23" y2="12" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="12" cy="12" r="3.2" fill="none" stroke="${color}" stroke-width="1.5"/>
+    <circle cx="18" cy="6" r="5" fill="white" fill-opacity="0.92" stroke="${color}" stroke-width="1.2"/>
+    <text x="18" y="7.8" text-anchor="middle" font-size="6.8" font-family="Arial, sans-serif" font-weight="700" fill="${color}">${label}</text>
+  </svg>`;
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 12 12, crosshair`;
+}
+
 export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth }) {
   const traceRef = useRef(null), cursorRef = useRef(null), containerRef = useRef(null), panStart = useRef(null), rafPending = useRef(null), pendingIdx = useRef(null);
   const [start, end] = viewRange; const t = THEMES[theme];
@@ -58,6 +69,15 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     });
     return maxW;
   }, [showEdgeValues, globalEdgeLabelWidth, signalEntries, start, end]);
+
+  const cursorStyle = useMemo(() => {
+    if (!deltaMode) return "grab";
+    const waitingForFirst = cursorIdx === null;
+    const placingSecond = cursorIdx !== null && !deltaLocked;
+    if (waitingForFirst) return buildDeltaCursor("1", t.cursor1);
+    if (placingSecond) return buildDeltaCursor("2", t.cursor2);
+    return buildDeltaCursor("1", t.cursor1);
+  }, [deltaMode, cursorIdx, deltaLocked, t.cursor1, t.cursor2]);
 
   const getGeo = useCallback((c) => {
     const rect = c.parentElement.getBoundingClientRect(); const W = rect.width, H = rect.height;
@@ -577,7 +597,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
   return (
     <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
       <canvas ref={traceRef} data-export="trace" style={{ width: "100%", height: "100%", display: "block", position: "absolute", top: 0, left: 0 }} />
-      <canvas ref={cursorRef} data-export="cursor" style={{ width: "100%", height: "100%", display: "block", position: "absolute", top: 0, left: 0, cursor: deltaMode ? "crosshair" : "grab" }}
+      <canvas ref={cursorRef} data-export="cursor" style={{ width: "100%", height: "100%", display: "block", position: "absolute", top: 0, left: 0, cursor: cursorStyle }}
         onMouseMove={handleMouseMove} onClick={handleClick} onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} />
     </div>
   );
