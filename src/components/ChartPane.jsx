@@ -116,16 +116,33 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       ctx.strokeStyle = color; ctx.lineWidth = signal.isDigital ? 2 : 1.5; ctx.globalAlpha = 0.9;
       if (dash === "dashed") ctx.setLineDash([6, 4]);
       else if (dash === "dotted") ctx.setLineDash([2, 3]);
+      else if (dash === "long_dash") ctx.setLineDash([12, 6]);
+      else if (dash === "dash_dot") ctx.setLineDash([10, 4, 2, 4]);
+      else if (dash === "dash_dot_dot") ctx.setLineDash([10, 4, 2, 3, 2, 4]);
       else ctx.setLineDash([]);
-      ctx.beginPath(); let started = false;
-      for (let i = start; i < end; i += stride) {
-        const v = signal.values[i]; if (v === null) { started = false; continue; }
-        const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
-        if (!started) { ctx.moveTo(x, y); started = true; }
-        else if (signal.isDigital && i > start) { const pi2 = Math.max(start, i - stride); const pv = signal.values[pi2]; if (pv !== null) ctx.lineTo(x, pad.top + plotH - ((pv - yMin) / yR) * plotH); ctx.lineTo(x, y); }
-        else ctx.lineTo(x, y);
+
+      if (dash === "samples") {
+        for (let i = start; i < end; i += stride) {
+          const v = signal.values[i]; if (v === null) continue;
+          const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
+          ctx.beginPath();
+          ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 0.92;
+          ctx.fill();
+        }
+      } else {
+        ctx.beginPath(); let started = false;
+        for (let i = start; i < end; i += stride) {
+          const v = signal.values[i]; if (v === null) { started = false; continue; }
+          const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
+          if (!started) { ctx.moveTo(x, y); started = true; }
+          else if (signal.isDigital && i > start) { const pi2 = Math.max(start, i - stride); const pv = signal.values[pi2]; if (pv !== null) ctx.lineTo(x, pad.top + plotH - ((pv - yMin) / yR) * plotH); ctx.lineTo(x, y); }
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
       }
-      ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
       if (si === 0) { for (let i = 0; i <= nY; i++) { const val = yMin + ((nY - i) / nY) * yR; ctx.fillStyle = t.text3; ctx.font = `11px ${FONT_MONO}`; ctx.textAlign = "right"; ctx.fillText(val.toFixed(2), pad.left - 6, pad.top + (plotH / nY) * i + 3); } }
     });
     // Edge value indicators — arrows at left/right boundaries with values

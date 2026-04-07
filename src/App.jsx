@@ -672,7 +672,7 @@ export default function App() {
                     <select
                       value=""
                       onChange={e => { if (e.target.value) setMetadata(prev => ({ ...prev, [i]: { ...prev[i], unit: e.target.value } })); }}
-                      style={{ width: 36, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 8, color: t.text2, fontSize: 12, fontFamily: FONT_MONO, cursor: "pointer", outline: "none", padding: "0 4px", appearance: "none", textAlign: "center" }}
+                      style={{ width: 36, background: t.panel, border: `1px solid ${t.inputBorder}`, borderRadius: 8, color: t.text1, fontSize: 12, fontFamily: FONT_MONO, fontWeight: 700, cursor: "pointer", outline: "none", padding: "0 4px", appearance: "none", textAlign: "center" }}
                       title="Insert unit symbol"
                     >
                       <option value="" disabled>⌄</option>

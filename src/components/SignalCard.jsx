@@ -36,8 +36,12 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
     { value: "solid", label: "—", desc: "Solid" },
     { value: "dashed", label: "- -", desc: "Dashed" },
     { value: "dotted", label: "···", desc: "Dotted" },
+    { value: "long_dash", label: "— —", desc: "Long Dash" },
+    { value: "dash_dot", label: "— · —", desc: "Dash Dot" },
+    { value: "dash_dot_dot", label: "— ·· —", desc: "Dash Dot Dot" },
+    { value: "samples", label: "• • •", desc: "Samples Only" },
   ];
-  const PALETTE = ["#7c8cf5","#f87171","#34d399","#f0b866","#a78bfa","#f472b6","#38bdf8","#fb923c","#a3e635","#818cf8","#2dd4bf","#f43f5e","#e8e4df","#9d97a0"];
+  const PALETTE = ["#7c8cf5","#f87171","#34d399","#f0b866","#a78bfa","#f472b6","#38bdf8","#fb923c","#a3e635","#818cf8","#2dd4bf","#f43f5e","#22d3ee","#84cc16","#f59e0b","#e879f9","#06b6d4","#10b981","#ef4444","#c084fc","#14b8a6","#f97316","#60a5fa","#eab308","#e8e4df","#9d97a0"];
 
   return (
     <div
@@ -112,10 +116,10 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
             ))}
           </div>
           <div style={{ fontSize: 12, color: t.text3, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4, fontFamily: FONT_DISPLAY }}>Line Style</div>
-          <div style={{ display: "flex", gap: 3 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 3 }}>
             {DASH_OPTIONS.map(d => (
-              <button key={d.value} onClick={() => { onStyleChange(index, { dash: d.value }); }} style={{
-                flex: 1, padding: "3px 0", fontSize: 13, fontFamily: FONT_MONO, fontWeight: 600,
+              <button key={d.value} title={d.desc} onClick={() => { onStyleChange(index, { dash: d.value }); }} style={{
+                padding: "3px 0", fontSize: 12, fontFamily: FONT_MONO, fontWeight: 600,
                 cursor: "pointer", borderRadius: 6, border: `1px solid ${dash === d.value ? color + "66" : t.border}`,
                 background: dash === d.value ? color + "18" : t.surface, color: dash === d.value ? color : t.text3,
               }}>{d.label}</button>
