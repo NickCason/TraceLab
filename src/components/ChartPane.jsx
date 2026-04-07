@@ -17,7 +17,7 @@ function buildDeltaCursor(label, color, isDark) {
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 12 12, crosshair`;
 }
 
-export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth }) {
+export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth, showExtrema = false }) {
   const traceRef = useRef(null), cursorRef = useRef(null), containerRef = useRef(null), panStart = useRef(null), rafPending = useRef(null), pendingIdx = useRef(null);
   const [start, end] = viewRange; const t = THEMES[theme];
 
@@ -113,6 +113,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     const stride = Math.max(1, Math.floor(sc / (plotW * 2)));
     signalEntries.forEach(({ signal, color, dash }, si) => {
       const [yMin, yMax] = yRanges[si]; const yR = yMax - yMin;
+      let minV = Infinity, maxV = -Infinity, minIdx = -1, maxIdx = -1;
       ctx.strokeStyle = color; ctx.lineWidth = signal.isDigital ? 2 : 1.5; ctx.globalAlpha = 0.9;
       if (dash === "dashed") ctx.setLineDash([6, 4]);
       else if (dash === "dotted") ctx.setLineDash([2, 3]);
@@ -124,6 +125,8 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       if (dash === "samples") {
         for (let i = start; i < end; i += stride) {
           const v = signal.values[i]; if (v === null) continue;
+          if (v < minV) { minV = v; minIdx = i; }
+          if (v > maxV) { maxV = v; maxIdx = i; }
           const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
           ctx.beginPath();
           ctx.arc(x, y, 1.8, 0, Math.PI * 2);
@@ -135,12 +138,39 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         ctx.beginPath(); let started = false;
         for (let i = start; i < end; i += stride) {
           const v = signal.values[i]; if (v === null) { started = false; continue; }
+          if (v < minV) { minV = v; minIdx = i; }
+          if (v > maxV) { maxV = v; maxIdx = i; }
           const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
           if (!started) { ctx.moveTo(x, y); started = true; }
           else if (signal.isDigital && i > start) { const pi2 = Math.max(start, i - stride); const pv = signal.values[pi2]; if (pv !== null) ctx.lineTo(x, pad.top + plotH - ((pv - yMin) / yR) * plotH); ctx.lineTo(x, y); }
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
+      }
+      if (showExtrema && minIdx !== -1 && maxIdx !== -1) {
+        const drawExtremaBadge = (idx, value, kind) => {
+          const x = pad.left + ((idx - start) / sc) * plotW;
+          const y = pad.top + plotH - ((value - yMin) / yR) * plotH;
+          const text = `${kind} ${value.toFixed(2)}`;
+          ctx.font = `bold 10px ${FONT_MONO}`;
+          const tw = ctx.measureText(text).width;
+          const bw = tw + 10, bh = 14;
+          const bx = Math.max(pad.left, Math.min(pad.left + plotW - bw, x + 6));
+          const by = kind === "MAX" ? Math.max(pad.top, y - bh - 6) : Math.min(pad.top + plotH - bh, y + 6);
+          ctx.fillStyle = t.chart; ctx.globalAlpha = 0.9;
+          ctx.fillRect(bx, by, bw, bh);
+          ctx.strokeStyle = color; ctx.globalAlpha = 0.6; ctx.lineWidth = 1;
+          ctx.strokeRect(bx, by, bw, bh);
+          ctx.fillStyle = color; ctx.globalAlpha = 0.95;
+          ctx.fillText(text, bx + 5, by + 10.5);
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(kind === "MAX" ? bx + 2 : bx + 2, kind === "MAX" ? by + bh : by);
+          ctx.strokeStyle = color; ctx.globalAlpha = 0.35; ctx.stroke();
+          ctx.globalAlpha = 1;
+        };
+        drawExtremaBadge(maxIdx, maxV, "MAX");
+        if (minIdx !== maxIdx) drawExtremaBadge(minIdx, minV, "MIN");
       }
       ctx.setLineDash([]); ctx.globalAlpha = 1;
       if (si === 0) { for (let i = 0; i <= nY; i++) { const val = yMin + ((nY - i) / nY) * yR; ctx.fillStyle = t.text3; ctx.font = `11px ${FONT_MONO}`; ctx.textAlign = "right"; ctx.fillText(val.toFixed(2), pad.left - 6, pad.top + (plotH / nY) * i + 3); } }
@@ -236,7 +266,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       drawEdge("right");
     }
     ctx.strokeStyle = t.border; ctx.lineWidth = 1; ctx.strokeRect(pad.left, pad.top, plotW, plotH);
-  }, [signalEntries, yRanges, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues]);
+  }, [signalEntries, yRanges, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues, showExtrema]);
 
   const drawCursors = useCallback(() => {
     const canvas = cursorRef.current; if (!canvas || !traceRef.current) return;

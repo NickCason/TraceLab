@@ -70,6 +70,7 @@ export default function App() {
   const [deltaLocked, setDeltaLocked] = useState(false); // cursor2 locked across all panes
   const [showPills, setShowPills] = useState(true);
   const [showEdgeValues, setShowEdgeValues] = useState(false);
+  const [showExtrema, setShowExtrema] = useState(false);
   const [splitRanges, setSplitRanges] = useState({}); // { [groupIdx]: true } — split Y range (default: unified)
   const [avgWindow, setAvgWindow] = useState({}); // { [signalIdx]: number } — moving average window size (0 = off)
   const [hideOriginal, setHideOriginal] = useState({}); // { [signalIdx]: true } — hide original when avg shown
@@ -557,6 +558,7 @@ export default function App() {
           <ToolBtn onClick={() => { setDeltaMode(!deltaMode); setCursorIdx(null); setCursor2Idx(null); setDeltaLocked(false); }} active={deltaMode} activeColor={t.cursor2} t={t}>Δ Delta</ToolBtn>
           <ToolBtn onClick={() => setShowPills(!showPills)} active={showPills} activeColor={t.green} t={t} title="Toggle cursor value pills">Pills</ToolBtn>
           <ToolBtn onClick={() => setShowEdgeValues(!showEdgeValues)} active={showEdgeValues} activeColor={t.warn} t={t} title="Show entry/exit values at view edges">Edges</ToolBtn>
+          <ToolBtn onClick={() => setShowExtrema(!showExtrema)} active={showExtrema} activeColor={t.accent} t={t} title="Show per-signal max/min markers in current view">Peaks</ToolBtn>
           <ToolBtn onClick={isCombined ? soloAll : combineAll} active={!isCombined} activeColor={t.isolate} t={t}>{isCombined ? "Solo All" : "Combine"}</ToolBtn>
           <ToolBtn onClick={resetZoom} t={t}>Fit</ToolBtn>
           <ToolBtn onClick={exportSnapshot} title="Save chart as PNG" t={t}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21,15 16,10 5,21" /></svg></ToolBtn>
@@ -776,7 +778,7 @@ export default function App() {
                       showTimeAxis={pi === chartPanes.length - 1} label={paneGc ? null : pane.label} compact={chartPanes.length > 2}
                       theme={theme} rebaseOffset={rebaseOffset}
                       groupColor={paneGc} showPills={showPills} showEdgeValues={showEdgeValues} unifyRange={!splitRanges[pane.groupIdx]}
-                      deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} />
+                      deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} showExtrema={showExtrema} />
                   </div>
                 </div>
               );
