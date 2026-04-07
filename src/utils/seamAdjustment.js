@@ -40,8 +40,12 @@ export function inferSeamDomain(values = []) {
 export function clampSeamPercent(percent) {
   const n = Number(percent);
   if (Number.isNaN(n)) return 0;
-  const snapped = Math.round(n / 5) * 5;
-  return Math.max(-100, Math.min(100, snapped));
+  return Math.max(-100, Math.min(100, n));
+}
+
+export function snapSeamPercent(percent, step = 5) {
+  const s = Math.max(0.0001, Number(step) || 5);
+  return clampSeamPercent(Math.round(clampSeamPercent(percent) / s) * s);
 }
 
 export function seamPercentToOffset(percent, span) {

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import Sparkline from "./Sparkline";
 import MarqueeText from "./MarqueeText";
-import { clampSeamPercent, inferSeamDomain, seamOffsetToPercent } from "../utils/seamAdjustment";
+import { clampSeamPercent, inferSeamDomain, seamOffsetToPercent, snapSeamPercent } from "../utils/seamAdjustment";
 
 export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, seamOffsetPct, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
   const t = THEMES[theme];
@@ -143,15 +143,15 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
             <div style={{ marginTop: 8, paddingTop: 6, borderTop: `1px solid ${t.border}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12, color: t.text3, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT_DISPLAY }}>
                 <span>Seam Shift</span>
-                <span style={{ fontFamily: FONT_MONO, letterSpacing: 0, textTransform: "none", color: t.text2 }}>{effectiveSeamPct > 0 ? "+" : ""}{effectiveSeamPct}%</span>
+                <span style={{ fontFamily: FONT_MONO, letterSpacing: 0, textTransform: "none", color: t.text2 }}>{effectiveSeamPct > 0 ? "+" : ""}{effectiveSeamPct.toFixed(2).replace(/\.00$/, "")}%</span>
               </div>
               <input
                 type="range"
                 min="-100"
                 max="100"
                 step="5"
-                value={effectiveSeamPct}
-                onChange={(e) => onStyleChange(index, { seamOffsetPct: clampSeamPercent(parseInt(e.target.value, 10) || 0) })}
+                value={snapSeamPercent(effectiveSeamPct, 5)}
+                onChange={(e) => onStyleChange(index, { seamOffsetPct: snapSeamPercent(parseFloat(e.target.value) || 0, 5) })}
                 onMouseDown={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
                 style={{ width: "100%" }}
@@ -162,14 +162,14 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
                   type="number"
                   min="-100"
                   max="100"
-                  step="5"
+                  step="0.01"
                   value={effectiveSeamPct}
-                  onChange={(e) => onStyleChange(index, { seamOffsetPct: clampSeamPercent(parseInt(e.target.value, 10) || 0) })}
+                  onChange={(e) => onStyleChange(index, { seamOffsetPct: clampSeamPercent(parseFloat(e.target.value) || 0) })}
                   onMouseDown={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
                   style={{ width: 64, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 6, padding: "2px 6px", color: t.text1, fontSize: 12, fontFamily: FONT_MONO }}
                 />
-                <span style={{ fontSize: 11, color: t.text4, fontFamily: FONT_DISPLAY }}>snap: 5%</span>
+                <span style={{ fontSize: 11, color: t.text4, fontFamily: FONT_DISPLAY }}>typed: fine</span>
               </div>
             </div>
           )}

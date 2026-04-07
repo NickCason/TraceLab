@@ -15,7 +15,7 @@ import { computeStats } from "./utils/stats";
 import { downloadBlob } from "./utils/download";
 import { ensureFonts } from "./utils/fonts";
 import { buildEquationEvaluator } from "./utils/derivedEquation";
-import { hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./utils/seamAdjustment";
+import { clampSeamPercent, hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./utils/seamAdjustment";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
 
@@ -64,8 +64,9 @@ function resolveSignalSeam(styleCfg, values) {
   const percent = styleCfg?.seamOffsetPct !== undefined
     ? Number(styleCfg.seamOffsetPct) || 0
     : seamOffsetToPercent(styleCfg?.seamOffset || 0, domain.span);
-  const offset = seamPercentToOffset(percent, domain.span);
-  return { ...domain, percent, offset, active: hasSeamAdjustment({ offset }) };
+  const boundedPercent = clampSeamPercent(percent);
+  const offset = seamPercentToOffset(boundedPercent, domain.span);
+  return { ...domain, percent: boundedPercent, offset, active: hasSeamAdjustment({ offset }) };
 }
 
 export default function App() {
