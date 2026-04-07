@@ -17,7 +17,7 @@ function buildDeltaCursor(label, color, isDark) {
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 12 12, crosshair`;
 }
 
-export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth, showExtrema = false }) {
+export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth, globalLeftEdgeLabelWidth, showExtrema = false }) {
   const traceRef = useRef(null), cursorRef = useRef(null), containerRef = useRef(null), panStart = useRef(null), rafPending = useRef(null), pendingIdx = useRef(null);
   const [start, end] = viewRange; const t = THEMES[theme];
   const getPlotValue = useCallback((entry, idx) => {
@@ -68,7 +68,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
 
   // Pre-compute max right-edge label width for dynamic padding
   // Use global width (from App) so all panes align, fall back to local computation
-  const edgeLabelWidth = useMemo(() => {
+  const rightEdgeLabelWidth = useMemo(() => {
     if (!showEdgeValues) return 0;
     if (globalEdgeLabelWidth > 0) return globalEdgeLabelWidth;
     // Fallback: local estimate
@@ -85,6 +85,22 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     return maxW;
   }, [showEdgeValues, globalEdgeLabelWidth, signalEntries, start, end]);
 
+  const leftEdgeLabelWidth = useMemo(() => {
+    if (!showEdgeValues) return 0;
+    if (globalLeftEdgeLabelWidth > 0) return globalLeftEdgeLabelWidth;
+    let maxW = 0;
+    signalEntries.forEach(({ signal, unit, isAvg }) => {
+      for (let i = start; i < end; i++) {
+        if (signal.values[i] !== null) {
+          const str = (isAvg ? "x̄ " : "") + signal.values[i].toFixed(2) + (unit ? " " + unit : "");
+          maxW = Math.max(maxW, str.length * 6.5 + 14);
+          break;
+        }
+      }
+    });
+    return maxW;
+  }, [showEdgeValues, globalLeftEdgeLabelWidth, signalEntries, start, end]);
+
   const cursorStyle = useMemo(() => {
     if (!deltaMode) return "grab";
     const waitingForFirst = cursorIdx === null;
@@ -96,10 +112,11 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
 
   const getGeo = useCallback((c) => {
     const rect = c.parentElement.getBoundingClientRect(); const W = rect.width, H = rect.height;
-    const rightPad = showEdgeValues ? Math.max(24, edgeLabelWidth + 16) : 20;
-    const pad = { top: compact ? 6 : 14, bottom: showTimeAxis ? 28 : 6, left: 68, right: rightPad };
+    const rightPad = showEdgeValues ? Math.max(24, rightEdgeLabelWidth + 16) : 20;
+    const leftPad = showEdgeValues ? Math.max(68, leftEdgeLabelWidth + 20) : 68;
+    const pad = { top: compact ? 6 : 14, bottom: showTimeAxis ? 28 : 6, left: leftPad, right: rightPad };
     return { W, H, pad, plotW: W - pad.left - pad.right, plotH: H - pad.top - pad.bottom };
-  }, [compact, showTimeAxis, showEdgeValues, edgeLabelWidth]);
+  }, [compact, showTimeAxis, showEdgeValues, rightEdgeLabelWidth, leftEdgeLabelWidth]);
 
   const drawTraces = useCallback(() => {
     const canvas = traceRef.current; if (!canvas) return;
@@ -123,6 +140,27 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       if (showTimeAxis) { const idx = start + Math.floor((sc / nX) * i); if (idx < timestamps.length) { ctx.fillStyle = t.text3; ctx.font = `11px ${FONT_MONO}`; ctx.textAlign = "center"; ctx.fillText(fmtTime(timestamps[idx] + rebaseOffset), x, pad.top + plotH + 16); } }
     }
     const stride = Math.max(1, Math.floor(sc / (plotW * 2)));
+    const placedExtrema = [];
+    const intersects = (a, b) => !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
+    const placeExtremaBox = (prefX, prefY, bw, bh, kind) => {
+      let fallback = { x: prefX, y: prefY };
+      for (let step = 0; step < 20; step++) {
+        const horiz = step === 0 ? 0 : Math.ceil(step / 2) * (bw + 5) * (step % 2 === 0 ? 1 : -1);
+        const vertTier = Math.floor(step / 6);
+        const vert = vertTier * (bh + 3) * (kind === "MAX" ? -1 : 1);
+        const x = Math.max(pad.left, Math.min(pad.left + plotW - bw, prefX + horiz));
+        const y = Math.max(pad.top, Math.min(pad.top + plotH - bh, prefY + vert));
+        const candidate = { x, y, w: bw, h: bh };
+        fallback = { x, y };
+        if (!placedExtrema.some(box => intersects(candidate, box))) {
+          placedExtrema.push(candidate);
+          return { x, y };
+        }
+      }
+      const finalBox = { x: fallback.x, y: fallback.y, w: bw, h: bh };
+      placedExtrema.push(finalBox);
+      return fallback;
+    };
     signalEntries.forEach((entry, si) => {
       const { signal, color, dash } = entry;
       const [yMin, yMax] = yRanges[si]; const yR = yMax - yMin;
@@ -168,8 +206,9 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.font = `bold 10px ${FONT_MONO}`;
           const tw = ctx.measureText(text).width;
           const bw = tw + 10, bh = 14;
-          const bx = Math.max(pad.left, Math.min(pad.left + plotW - bw, x + 6));
-          const by = kind === "MAX" ? Math.max(pad.top, y - bh - 6) : Math.min(pad.top + plotH - bh, y + 6);
+          const prefX = Math.max(pad.left, Math.min(pad.left + plotW - bw, x + 6));
+          const prefY = kind === "MAX" ? Math.max(pad.top, y - bh - 6) : Math.min(pad.top + plotH - bh, y + 6);
+          const { x: bx, y: by } = placeExtremaBox(prefX, prefY, bw, bh, kind);
           ctx.fillStyle = t.chart; ctx.globalAlpha = 0.9;
           ctx.fillRect(bx, by, bw, bh);
           ctx.strokeStyle = color; ctx.globalAlpha = 0.6; ctx.lineWidth = 1;
@@ -178,7 +217,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.fillText(text, bx + 5, by + 10.5);
           ctx.beginPath();
           ctx.moveTo(x, y);
-          ctx.lineTo(kind === "MAX" ? bx + 2 : bx + 2, kind === "MAX" ? by + bh : by);
+          ctx.lineTo(bx + (kind === "MAX" ? 3 : Math.max(3, Math.min(bw - 3, x - bx))), kind === "MAX" ? by + bh : by);
           ctx.strokeStyle = color; ctx.globalAlpha = 0.35; ctx.stroke();
           ctx.globalAlpha = 1;
         };

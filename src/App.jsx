@@ -390,6 +390,25 @@ export default function App() {
     return maxW;
   }, [showEdgeValues, data, viewRange, chartPanes]);
 
+  const globalLeftEdgeLabelWidth = useMemo(() => {
+    if (!showEdgeValues || !data) return 0;
+    const [start, end] = viewRange;
+    let maxW = 0;
+    chartPanes.forEach(pane => {
+      pane.entries.forEach(({ signal, unit, isAvg }) => {
+        for (let i = start; i < end; i++) {
+          if (signal.values[i] !== null) {
+            const prefix = isAvg ? "x̄ " : "";
+            const str = prefix + signal.values[i].toFixed(2) + (unit ? " " + unit : "");
+            maxW = Math.max(maxW, str.length * 6.5 + 14);
+            break;
+          }
+        }
+      });
+    });
+    return maxW;
+  }, [showEdgeValues, data, viewRange, chartPanes]);
+
   const applyRebase = useCallback(() => {
     if (!data || !rebaseInput.trim()) return;
     try { const target = new Date(rebaseInput.trim()); if (isNaN(target.getTime())) { showToast("Invalid date format", "error"); return; } setRebaseOffset(target.getTime() - data.timestamps[0]); showToast(`Rebased: start → ${fmtTsClean(target.getTime())}`, "success"); } catch { showToast("Invalid date format", "error"); }
@@ -783,7 +802,7 @@ export default function App() {
                       showTimeAxis={pi === chartPanes.length - 1} label={paneGc ? null : pane.label} compact={chartPanes.length > 2}
                       theme={theme} rebaseOffset={rebaseOffset}
                       groupColor={paneGc} showPills={showPills} showEdgeValues={showEdgeValues} unifyRange={!splitRanges[pane.groupIdx]}
-                      deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} showExtrema={showExtrema} />
+                      deltaLocked={deltaLocked} setDeltaLocked={setDeltaLocked} globalEdgeLabelWidth={globalEdgeLabelWidth} globalLeftEdgeLabelWidth={globalLeftEdgeLabelWidth} showExtrema={showExtrema} />
                   </div>
                 </div>
               );
