@@ -3,6 +3,17 @@ import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { fmtTime } from "../utils/date";
 import { arrayMinMax } from "../utils/stats";
 
+function buildDeltaCursor(label, color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+    <line x1="12" y1="1" x2="12" y2="23" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="1" y1="12" x2="23" y2="12" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="12" cy="12" r="3.2" fill="none" stroke="${color}" stroke-width="1.5"/>
+    <circle cx="18" cy="6" r="5" fill="white" fill-opacity="0.92" stroke="${color}" stroke-width="1.2"/>
+    <text x="18" y="7.8" text-anchor="middle" font-size="6.8" font-family="Arial, sans-serif" font-weight="700" fill="${color}">${label}</text>
+  </svg>`;
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 12 12, crosshair`;
+}
+
 export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCursorIdx, cursor2Idx, setCursor2Idx, deltaMode, viewRange, setViewRange, showTimeAxis, label, compact, theme, rebaseOffset, groupColor, showPills: pillsEnabled, showEdgeValues, unifyRange, deltaLocked, setDeltaLocked, globalEdgeLabelWidth }) {
   const traceRef = useRef(null), cursorRef = useRef(null), containerRef = useRef(null), panStart = useRef(null), rafPending = useRef(null), pendingIdx = useRef(null);
   const [start, end] = viewRange; const t = THEMES[theme];
@@ -58,6 +69,15 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     });
     return maxW;
   }, [showEdgeValues, globalEdgeLabelWidth, signalEntries, start, end]);
+
+  const cursorStyle = useMemo(() => {
+    if (!deltaMode) return "grab";
+    const waitingForFirst = cursorIdx === null;
+    const placingSecond = cursorIdx !== null && !deltaLocked;
+    if (waitingForFirst) return buildDeltaCursor("1", t.cursor1);
+    if (placingSecond) return buildDeltaCursor("2", t.cursor2);
+    return buildDeltaCursor("1", t.cursor1);
+  }, [deltaMode, cursorIdx, deltaLocked, t.cursor1, t.cursor2]);
 
   const getGeo = useCallback((c) => {
     const rect = c.parentElement.getBoundingClientRect(); const W = rect.width, H = rect.height;
@@ -204,6 +224,46 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     const { W, H, pad, plotW, plotH } = getGeo(traceRef.current);
     canvas.width = W * dpr; canvas.height = H * dpr; canvas.style.width = W + "px"; canvas.style.height = H + "px"; ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H); const sc = end - start;
+    const drawCursorHandleTag = (x, label, color) => {
+      const text = `${label} ↕`;
+      const tagY = pad.top + 11;
+      ctx.font = `bold 10px ${FONT_MONO}`;
+      const tw = ctx.measureText(text).width;
+      const bw = tw + 12, bh = 14, r = 4;
+      const bx = x - bw / 2, by = tagY - bh / 2;
+
+      // Tag background
+      ctx.fillStyle = t.chart; ctx.globalAlpha = 0.92;
+      ctx.beginPath();
+      ctx.moveTo(bx + r, by); ctx.lineTo(bx + bw - r, by);
+      ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
+      ctx.lineTo(bx + bw, by + bh - r);
+      ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
+      ctx.lineTo(bx + r, by + bh);
+      ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
+      ctx.lineTo(bx, by + r);
+      ctx.quadraticCurveTo(bx, by, bx + r, by);
+      ctx.fill();
+
+      // Border and text
+      ctx.strokeStyle = color; ctx.globalAlpha = 0.65; ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(text, x, tagY + 0.5);
+
+      // Pointer triangle toward cursor line
+      const ty = by + bh;
+      ctx.fillStyle = color; ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(x, ty + 4);
+      ctx.lineTo(x - 3.5, ty + 0.5);
+      ctx.lineTo(x + 3.5, ty + 0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    };
 
     const drawOne = (idx, col, alpha = 0.7, showPills = false) => {
       if (idx === null || idx < start || idx >= end) return;
@@ -345,22 +405,9 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         drawOne(cursorIdx, t.cursor1, 0.7, false);
         drawOne(cursor2Idx, t.cursor2, 0.6, false);
 
-        // 3) Cursor labels — positioned inside plot area to avoid clipping
-        ctx.font = `bold 11px ${FONT_MONO}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        const lblY = pad.top + 10;
-        // Label 1
-        ctx.fillStyle = t.chart; ctx.globalAlpha = 0.9;
-        ctx.fillRect(x1 - 9, lblY - 6, 18, 12);
-        ctx.strokeStyle = t.cursor1; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
-        ctx.strokeRect(x1 - 9, lblY - 6, 18, 12); ctx.globalAlpha = 1;
-        ctx.fillStyle = t.cursor1; ctx.fillText("1", x1, lblY + 0.5);
-        // Label 2
-        ctx.fillStyle = t.chart; ctx.globalAlpha = 0.9;
-        ctx.fillRect(x2 - 9, lblY - 6, 18, 12);
-        ctx.strokeStyle = t.cursor2; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
-        ctx.strokeRect(x2 - 9, lblY - 6, 18, 12); ctx.globalAlpha = 1;
-        ctx.fillStyle = t.cursor2; ctx.fillText("2", x2, lblY + 0.5);
-        ctx.textBaseline = "alphabetic";
+        // 3) Cursor handle labels — distinct for first vs second handle
+        drawCursorHandleTag(x1, "1", t.cursor1);
+        drawCursorHandleTag(x2, "2", t.cursor2);
 
         // Per-signal delta pills at both cursors (if pills enabled)
         if (pillsEnabled) {
@@ -479,15 +526,8 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.globalAlpha = 1; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
         }
       } else {
-        // cursor2 not placed yet — just show the "1" label on cursor1
-        ctx.font = `bold 11px ${FONT_MONO}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        const lblY = pad.top + 10;
-        ctx.fillStyle = t.chart; ctx.globalAlpha = 0.9;
-        ctx.fillRect(x1 - 9, lblY - 6, 18, 12);
-        ctx.strokeStyle = t.cursor1; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
-        ctx.strokeRect(x1 - 9, lblY - 6, 18, 12); ctx.globalAlpha = 1;
-        ctx.fillStyle = t.cursor1; ctx.fillText("1", x1, lblY + 0.5);
-        ctx.textBaseline = "alphabetic";
+        // cursor2 not placed yet — show distinct first-handle tag
+        drawCursorHandleTag(x1, "1", t.cursor1);
       }
     }
   }, [signalEntries, yRanges, cursorIdx, cursor2Idx, deltaMode, pillsEnabled, start, end, t, getGeo, timestamps]);
@@ -557,7 +597,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
   return (
     <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
       <canvas ref={traceRef} data-export="trace" style={{ width: "100%", height: "100%", display: "block", position: "absolute", top: 0, left: 0 }} />
-      <canvas ref={cursorRef} data-export="cursor" style={{ width: "100%", height: "100%", display: "block", position: "absolute", top: 0, left: 0, cursor: deltaMode ? "crosshair" : "grab" }}
+      <canvas ref={cursorRef} data-export="cursor" style={{ width: "100%", height: "100%", display: "block", position: "absolute", top: 0, left: 0, cursor: cursorStyle }}
         onMouseMove={handleMouseMove} onClick={handleClick} onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} />
     </div>
   );
