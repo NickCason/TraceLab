@@ -99,9 +99,9 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
 
         {type === "equation" && (
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Equation (supports Math functions)</div>
+            <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Equation (s0/s1 tokens + Math functions)</div>
             <textarea value={expression} onChange={(e) => setExpression(e.target.value)} rows={3} style={{ ...inputStyle, resize: "vertical", minHeight: 62 }} />
-            <div style={{ fontSize: 11, color: t.text4, marginTop: 4, fontFamily: FONT_DISPLAY }}>Click variables below to insert tokens like <span style={{ fontFamily: FONT_MONO }}>s3</span>.</div>
+            <div style={{ fontSize: 11, color: t.text4, marginTop: 4, fontFamily: FONT_DISPLAY }}>Click variables below to insert tokens like <span style={{ fontFamily: FONT_MONO }}>s3</span>. Example: <span style={{ fontFamily: FONT_MONO }}>abs(s0 - s1)</span>.</div>
           </div>
         )}
 
