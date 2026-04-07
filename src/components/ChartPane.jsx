@@ -214,6 +214,8 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.strokeStyle = color; ctx.globalAlpha = 0.6; ctx.lineWidth = 1;
           ctx.strokeRect(bx, by, bw, bh);
           ctx.fillStyle = color; ctx.globalAlpha = 0.95;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "alphabetic";
           ctx.fillText(text, bx + 5, by + 10.5);
           ctx.beginPath();
           ctx.moveTo(x, y);
