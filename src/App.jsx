@@ -16,6 +16,48 @@ import { downloadBlob } from "./utils/download";
 import { ensureFonts } from "./utils/fonts";
 import { buildEquationEvaluator } from "./utils/derivedEquation";
 
+const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
+
+function remapSignalIndex(sigIdx, removedIdx) {
+  if (sigIdx === removedIdx) return null;
+  if (sigIdx > removedIdx) return sigIdx - 1;
+  return sigIdx;
+}
+
+function shiftIndexedMap(mapObj, removedIdx) {
+  const next = {};
+  Object.entries(mapObj || {}).forEach(([k, v]) => {
+    const idx = parseInt(k, 10);
+    if (Number.isNaN(idx) || idx === removedIdx) return;
+    next[idx > removedIdx ? idx - 1 : idx] = v;
+  });
+  return next;
+}
+
+function remapEquationExpression(expression, removedIdx) {
+  return (expression || "").replace(SIGNAL_TOKEN_PATTERN, (_, rawIdx) => {
+    const mapped = remapSignalIndex(parseInt(rawIdx, 10), removedIdx);
+    return mapped === null ? "NaN" : `s${mapped}`;
+  });
+}
+
+function remapDerivedConfig(cfg, removedIdx) {
+  if (!cfg) return cfg;
+  if (cfg.type === "rolling_avg") {
+    const source = remapSignalIndex(cfg.source ?? 0, removedIdx);
+    return source === null ? { ...cfg, source: 0, invalidRef: true } : { ...cfg, source };
+  }
+  if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio") {
+    const [a = 0, b = 1] = cfg.sources || [];
+    const sourceA = remapSignalIndex(a, removedIdx);
+    const sourceB = remapSignalIndex(b, removedIdx);
+    if (sourceA === null || sourceB === null) return { ...cfg, sources: [0, 1], invalidRef: true };
+    return { ...cfg, sources: [sourceA, sourceB] };
+  }
+  if (cfg.type === "equation") return { ...cfg, expression: remapEquationExpression(cfg.expression, removedIdx) };
+  return cfg;
+}
+
 export default function App() {
   const [data, setData] = useState(null);
   const [visible, setVisible] = useState([]);
@@ -154,6 +196,37 @@ export default function App() {
     setMetadata(m => ({ ...m, [idx]: { ...(m[idx] || {}), displayName: baseName } }));
     showToast(`Derived pen updated`, "success");
   }, [data, derivedConfigs, groups, recomputeDerivedSignals, showToast, toDerivedCfg]);
+
+  const deleteDerivedPen = useCallback((idx) => {
+    if (!data || !data.signals[idx]?.isDerived) return;
+    const deletedName = metadata[idx]?.displayName || data.tagNames[idx] || `Derived ${idx}`;
+
+    const nextBaseData = {
+      ...data,
+      tagNames: data.tagNames.filter((_, i) => i !== idx),
+      signals: data.signals.filter((_, i) => i !== idx),
+    };
+
+    const nextDerivedCfgs = {};
+    Object.entries(derivedConfigs || {}).forEach(([k, cfg]) => {
+      const oldIdx = parseInt(k, 10);
+      if (Number.isNaN(oldIdx) || oldIdx === idx) return;
+      const newIdx = oldIdx > idx ? oldIdx - 1 : oldIdx;
+      nextDerivedCfgs[newIdx] = remapDerivedConfig(cfg, idx);
+    });
+
+    const recomputed = recomputeDerivedSignals(nextBaseData, nextDerivedCfgs);
+    setData(recomputed);
+    setDerivedConfigs(nextDerivedCfgs);
+    setVisible((prev) => prev.filter((_, i) => i !== idx));
+    setGroups((prev) => prev.filter((_, i) => i !== idx));
+    setMetadata((prev) => shiftIndexedMap(prev, idx));
+    setSignalStyles((prev) => shiftIndexedMap(prev, idx));
+    setAvgWindow((prev) => shiftIndexedMap(prev, idx));
+    setHideOriginal((prev) => shiftIndexedMap(prev, idx));
+    setDerivedDialog((prev) => (prev.editIdx === idx ? { ...prev, open: false, editIdx: null, initialDraft: null } : prev));
+    showToast(`Deleted derived pen: ${deletedName}`, "success");
+  }, [data, derivedConfigs, metadata, recomputeDerivedSignals, showToast]);
 
   useEffect(() => {
     ensureFonts();
@@ -549,6 +622,7 @@ export default function App() {
                           },
                         });
                       }}
+                      onDeleteDerived={deleteDerivedPen}
                       onSetGroupName={(g, name) => setGroupNames(prev => { const n = { ...prev }; if (name) n[g] = name; else delete n[g]; return n; })}
                       onStyleChange={(idx, updates) => setSignalStyles(prev => {
                         const cur = prev[idx] || {};
