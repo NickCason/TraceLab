@@ -45,8 +45,16 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
 
   return (
     <div
-      draggable
-      onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(index)); e.dataTransfer.effectAllowed = "move"; }}
+      draggable={!showStylePicker}
+      onDragStart={(e) => {
+        const interactive = e.target.closest?.("input, button, select, textarea");
+        if (interactive || showStylePicker) {
+          e.preventDefault();
+          return;
+        }
+        e.dataTransfer.setData("text/plain", String(index));
+        e.dataTransfer.effectAllowed = "move";
+      }}
       style={{
         display: "flex", alignItems: "center", gap: 5, padding: "5px 7px", borderRadius: 8, marginBottom: 2,
         background: vis ? t.surface : "transparent",
@@ -141,6 +149,8 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
                 step="1"
                 value={Math.round(seamOffset)}
                 onChange={(e) => onStyleChange(index, { seamOffset: parseInt(e.target.value, 10) || 0 })}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
                 style={{ width: "100%" }}
                 title="Virtual seam offset for wrapped values"
               />

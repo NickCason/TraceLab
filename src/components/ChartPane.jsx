@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useMemo } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { fmtTime } from "../utils/date";
+import { arrayMinMax } from "../utils/stats";
 import { normalizeToSeam } from "../utils/seamAdjustment";
 
 function buildDeltaCursor(label, color, isDark) {
@@ -27,18 +28,11 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
   }, []);
 
   const yRanges = useMemo(() => {
-    // First pass: get raw min/max per signal (before any padding)
-    const raw = signalEntries.map((entry) => {
-      let min = Infinity;
-      let max = -Infinity;
-      for (let i = start; i < end; i++) {
-        const v = getPlotValue(entry, i);
-        if (v === null) continue;
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-      if (min === Infinity) return null;
-      return [min, max];
+    // Axis range stays in raw engineering units; seam adjustment only affects plotted coordinates.
+    const raw = signalEntries.map(({ signal }) => {
+      const r = arrayMinMax(signal.values, start, end);
+      if (!r) return null;
+      return [r.min, r.max];
     });
 
     if (!unifyRange || signalEntries.length <= 1) {
