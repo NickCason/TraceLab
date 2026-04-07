@@ -344,9 +344,33 @@ export default function App() {
   const getDisplayName = (i) => metadata[i]?.displayName || data?.tagNames[i] || `Signal ${i}`;
   const getGroupLabel = (g) => groupNames[g] || `Group ${GROUP_LABELS[g - 1]}`;
   const addOverlay = useCallback((groupIdx, type = "line") => {
-    const overlay = type === "band"
-      ? { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "band", visible: true, min: 0, max: 10, label: "Band", color: OVERLAY_COLOR_SWATCHES[groupIdx % OVERLAY_COLOR_SWATCHES.length], opacity: 0.2 }
-      : { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "line", visible: true, value: 0, label: "Reference", color: OVERLAY_COLOR_SWATCHES[groupIdx % OVERLAY_COLOR_SWATCHES.length], dashed: true, opacity: 1 };
+    const [baseType, axis] = String(type).includes(":") ? String(type).split(":") : [type, "y"];
+    const overlay = baseType === "band"
+      ? {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: "band",
+        axis: axis || "y",
+        visible: true,
+        min: 0,
+        max: 10,
+        sample: 0,
+        sampleEnd: 100,
+        label: axis === "x" ? "Sample Band" : "Band",
+        color: OVERLAY_COLOR_SWATCHES[groupIdx % OVERLAY_COLOR_SWATCHES.length],
+        opacity: 0.2,
+      }
+      : {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: "line",
+        axis: axis || "y",
+        visible: true,
+        value: 0,
+        sample: 0,
+        label: axis === "x" ? "Sample Marker" : "Reference",
+        color: OVERLAY_COLOR_SWATCHES[groupIdx % OVERLAY_COLOR_SWATCHES.length],
+        dashed: true,
+        opacity: 1,
+      };
     setReferenceOverlays(prev => ({ ...prev, [groupIdx]: [...(prev[groupIdx] || []), overlay] }));
   }, []);
   const updateOverlay = useCallback((groupIdx, overlayId, updates) => {

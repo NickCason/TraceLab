@@ -167,6 +167,49 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         if (!ov || ov.visible === false) return;
         const [yMin, yMax] = overlayYRange || yRanges[0] || [0, 1];
         const yR = yMax - yMin || 1;
+        if (ov.axis === "x") {
+          if (ov.type === "band") {
+            const s1 = Number(ov.sample);
+            const s2 = Number(ov.sampleEnd);
+            if (!Number.isFinite(s1) || !Number.isFinite(s2) || sc <= 0) return;
+            const low = Math.min(s1, s2), high = Math.max(s1, s2);
+            const x1 = pad.left + ((low - start) / sc) * plotW;
+            const x2 = pad.left + ((high - start) / sc) * plotW;
+            if (x2 < pad.left || x1 > pad.left + plotW) return;
+            const drawX = Math.max(pad.left, x1);
+            const drawW = Math.max(1, Math.min(pad.left + plotW, x2) - drawX);
+            ctx.fillStyle = ov.color || t.warn;
+            ctx.globalAlpha = Math.max(0, Math.min(1, Number(ov.opacity) || 0.2));
+            ctx.fillRect(drawX, pad.top, drawW, plotH);
+            if (ov.label) {
+              ctx.globalAlpha = 0.9;
+              ctx.fillStyle = ov.color || t.warn;
+              ctx.font = `bold 10px ${FONT_DISPLAY}`;
+              ctx.fillText(ov.label, Math.max(pad.left + 4, drawX + 4), pad.top + 11);
+            }
+          } else {
+            const s = Number(ov.sample);
+            if (!Number.isFinite(s) || sc <= 0) return;
+            const x = pad.left + ((s - start) / sc) * plotW;
+            if (x < pad.left || x > pad.left + plotW) return;
+            ctx.strokeStyle = ov.color || t.warn;
+            ctx.globalAlpha = 0.9;
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash(ov.dashed ? [6, 4] : []);
+            ctx.beginPath();
+            ctx.moveTo(x, pad.top);
+            ctx.lineTo(x, pad.top + plotH);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (ov.label) {
+              ctx.fillStyle = ov.color || t.warn;
+              ctx.font = `bold 10px ${FONT_DISPLAY}`;
+              ctx.fillText(ov.label, Math.max(pad.left + 4, x + 4), pad.top + 11);
+            }
+          }
+          ctx.globalAlpha = 1;
+          return;
+        }
         if (ov.type === "band") {
           const bMin = Number(ov.min);
           const bMax = Number(ov.max);
