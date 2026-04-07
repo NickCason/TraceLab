@@ -69,6 +69,27 @@ function resolveSignalSeam(styleCfg, values) {
   return { ...domain, percent: boundedPercent, offset, active: hasSeamAdjustment({ offset }) };
 }
 
+function shiftSeriesBackward(values, shiftSamples) {
+  const shift = Math.max(0, Number(shiftSamples) || 0);
+  if (shift <= 1e-9) return values;
+  const shifted = new Array(values.length).fill(null);
+  for (let i = 0; i < values.length; i++) {
+    const srcPos = i + shift;
+    const lo = Math.floor(srcPos);
+    const hi = Math.ceil(srcPos);
+    if (lo < 0 || hi >= values.length) continue;
+    const loV = values[lo];
+    const hiV = values[hi];
+    if (loV === null && hiV === null) continue;
+    if (loV === null) { shifted[i] = hiV; continue; }
+    if (hiV === null) { shifted[i] = loV; continue; }
+    if (lo === hi) { shifted[i] = loV; continue; }
+    const frac = srcPos - lo;
+    shifted[i] = loV + (hiV - loV) * frac;
+  }
+  return shifted;
+}
+
 export default function App() {
   const [data, setData] = useState(null);
   const [visible, setVisible] = useState([]);
@@ -129,6 +150,9 @@ export default function App() {
             out[i] = sum / buf.length;
           } else out[i] = buf.length ? sum / buf.length : null;
         }
+        const phaseShift = (win - 1) / 2;
+        const shifted = shiftSeriesBackward(out, phaseShift);
+        for (let i = 0; i < out.length; i++) out[i] = shifted[i];
       } else if (cfg.type === "difference" || cfg.type === "sum" || cfg.type === "ratio" || cfg.type === "product" || cfg.type === "min" || cfg.type === "max") {
         const [aIdx, bIdx] = cfg.sources || [];
         const domainA = inferSeamDomain(signals[aIdx]?.values || []);

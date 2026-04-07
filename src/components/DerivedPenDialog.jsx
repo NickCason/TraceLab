@@ -66,6 +66,14 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
     fontFamily: FONT_MONO,
     outline: "none",
   };
+  const selectStyle = {
+    ...inputStyle,
+    background: t.panel,
+    fontWeight: 700,
+    cursor: "pointer",
+    appearance: "none",
+    colorScheme: theme === "dark" ? "dark" : "light",
+  };
 
   const create = () => {
     if (type === "equation" && !expression.trim()) return;
@@ -91,7 +99,7 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
           <div>
             <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Type</div>
-            <select value={type} onChange={(e) => setType(e.target.value)} style={inputStyle}>
+            <select value={type} onChange={(e) => setType(e.target.value)} style={selectStyle}>
               <option value="equation">Equation</option>
               <option value="rolling_avg">Rolling Average</option>
               <option value="difference">Difference</option>
@@ -104,7 +112,7 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
           </div>
           <div>
             <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Target Chart Group</div>
-            <select value={groupIdx} onChange={(e) => setGroupIdx(e.target.value)} style={inputStyle}>
+            <select value={groupIdx} onChange={(e) => setGroupIdx(e.target.value)} style={selectStyle}>
               {Array.from({ length: 8 }, (_, i) => i + 1).map(g => <option key={g} value={g}>{getGroupLabel(g)}</option>)}
             </select>
           </div>
@@ -143,7 +151,7 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
             <div>
               <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Source Signal</div>
-              <select value={source} onChange={(e) => setSource(e.target.value)} style={inputStyle}>
+              <select value={source} onChange={(e) => setSource(e.target.value)} style={selectStyle}>
                 {signals.map((_, i) => <option key={i} value={i}>{`s${i} — ${getDisplayName(i)}`}</option>)}
               </select>
             </div>
@@ -158,13 +166,13 @@ export default function DerivedPenDialog({ open, mode = "create", theme, signals
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
             <div>
               <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Source A</div>
-              <select value={sourceA} onChange={(e) => setSourceA(e.target.value)} style={inputStyle}>
+              <select value={sourceA} onChange={(e) => setSourceA(e.target.value)} style={selectStyle}>
                 {signals.map((_, i) => <option key={i} value={i}>{`s${i} — ${getDisplayName(i)}`}</option>)}
               </select>
             </div>
             <div>
               <div style={{ fontSize: 11, color: t.text3, marginBottom: 4, fontFamily: FONT_DISPLAY }}>Source B</div>
-              <select value={sourceB} onChange={(e) => setSourceB(e.target.value)} style={inputStyle}>
+              <select value={sourceB} onChange={(e) => setSourceB(e.target.value)} style={selectStyle}>
                 {signals.map((_, i) => <option key={i} value={i}>{`s${i} — ${getDisplayName(i)}`}</option>)}
               </select>
             </div>
