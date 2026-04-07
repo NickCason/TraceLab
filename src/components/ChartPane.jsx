@@ -58,7 +58,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     const p = (gMax - gMin) * 0.08;
     const unified = [gMin - p, gMax + p];
     return raw.map(() => unified);
-  }, [signalEntries, start, end, unifyRange]);
+  }, [signalEntries, start, end, unifyRange, getPlotValue]);
 
   // Pre-compute max right-edge label width for dynamic padding
   // Use global width (from App) so all panes align, fall back to local computation
