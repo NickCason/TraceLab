@@ -3,7 +3,7 @@ import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import Sparkline from "./Sparkline";
 import MarqueeText from "./MarqueeText";
 
-export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, onEditDerived, onToggleVisible, onStyleChange, theme }) {
+export default function SignalCard({ index, signal, color, dash, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
   const t = THEMES[theme];
   const hasCustomName = displayName !== tagName;
   const [showStylePicker, setShowStylePicker] = useState(false);
@@ -125,12 +125,20 @@ export default function SignalCard({ index, signal, color, dash, displayName, ta
             marginTop: 6, fontSize: 12, color: t.text4, cursor: "pointer", textAlign: "center", fontFamily: FONT_DISPLAY,
           }}>Reset to default</div>
           {isDerived && (
-            <button
-              onClick={() => { setShowStylePicker(false); onEditDerived?.(index); }}
-              style={{ marginTop: 6, width: "100%", padding: "4px 0", borderRadius: 7, border: `1px solid ${t.warn}44`, background: t.warn + "16", color: t.warn, fontSize: 11, fontFamily: FONT_DISPLAY, fontWeight: 700, cursor: "pointer" }}
-            >
-              Edit Derived Settings
-            </button>
+            <>
+              <button
+                onClick={() => { setShowStylePicker(false); onEditDerived?.(index); }}
+                style={{ marginTop: 6, width: "100%", padding: "4px 0", borderRadius: 7, border: `1px solid ${t.warn}44`, background: t.warn + "16", color: t.warn, fontSize: 11, fontFamily: FONT_DISPLAY, fontWeight: 700, cursor: "pointer" }}
+              >
+                Edit Derived Settings
+              </button>
+              <button
+                onClick={() => { setShowStylePicker(false); onDeleteDerived?.(index); }}
+                style={{ marginTop: 4, width: "100%", padding: "4px 0", borderRadius: 7, border: `1px solid ${t.red}55`, background: t.red + "14", color: t.red, fontSize: 11, fontFamily: FONT_DISPLAY, fontWeight: 700, cursor: "pointer" }}
+              >
+                Delete Derived
+              </button>
+            </>
           )}
         </div>
       )}
