@@ -163,12 +163,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
             <div onClick={() => setShowOverlays(v => !v)} style={{ fontSize: 11, color: t.text3, fontWeight: 700, letterSpacing: 0.6, fontFamily: FONT_DISPLAY, cursor: "pointer" }}>
               OVERLAYS {showOverlays ? "▾" : "▸"} <span style={{ color: t.text4, fontWeight: 500 }}>({referenceOverlays.length})</span>
             </div>
-            <div style={{ display: "flex", gap: 4 }}>
-              <button onClick={() => onAddOverlay?.(groupIdx, "line:y")} style={{ fontSize: 10, borderRadius: 5, border: `1px solid ${t.border}`, background: t.surface, color: t.text2, cursor: "pointer", padding: "1px 5px", fontFamily: FONT_DISPLAY }}>+ H-Line</button>
-              <button onClick={() => onAddOverlay?.(groupIdx, "band:y")} style={{ fontSize: 10, borderRadius: 5, border: `1px solid ${t.border}`, background: t.surface, color: t.text2, cursor: "pointer", padding: "1px 5px", fontFamily: FONT_DISPLAY }}>+ H-Band</button>
-              <button onClick={() => onAddOverlay?.(groupIdx, "line:x")} style={{ fontSize: 10, borderRadius: 5, border: `1px solid ${t.border}`, background: t.surface, color: t.text2, cursor: "pointer", padding: "1px 5px", fontFamily: FONT_DISPLAY }}>+ V-Line</button>
-              <button onClick={() => onAddOverlay?.(groupIdx, "band:x")} style={{ fontSize: 10, borderRadius: 5, border: `1px solid ${t.border}`, background: t.surface, color: t.text2, cursor: "pointer", padding: "1px 5px", fontFamily: FONT_DISPLAY }}>+ V-Band</button>
-            </div>
+            <div style={{ fontSize: 10, color: t.text4, fontFamily: FONT_DISPLAY }}>Use + Reference in chart header</div>
           </div>
           {showOverlays && referenceOverlays.map((ov) => (
             <div key={ov.id} style={{ display: "grid", gridTemplateColumns: "16px 1fr 54px 28px", gap: 4, alignItems: "center", marginBottom: 3, padding: "4px 5px", borderRadius: 6, border: `1px solid ${t.borderSubtle}`, background: t.surface }}>

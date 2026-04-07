@@ -110,6 +110,7 @@ export default function App() {
   const [hideOriginal, setHideOriginal] = useState({}); // { [signalIdx]: true } — hide original when avg shown
   const [derivedConfigs, setDerivedConfigs] = useState({}); // { [signalIdx]: { type, ...params } }
   const [derivedDialog, setDerivedDialog] = useState({ open: false, mode: "create", groupIdx: 1, type: "equation", editIdx: null, initialDraft: null });
+  const [overlayPickerGroup, setOverlayPickerGroup] = useState(null);
   const [viewRange, setViewRange] = useState([0, 0]);
   const [activePanel, setActivePanel] = useState("signals");
   const [metadata, setMetadata] = useState({});
@@ -345,16 +346,40 @@ export default function App() {
   const getGroupLabel = (g) => groupNames[g] || `Group ${GROUP_LABELS[g - 1]}`;
   const addOverlay = useCallback((groupIdx, type = "line") => {
     const [baseType, axis] = String(type).includes(":") ? String(type).split(":") : [type, "y"];
+    const [start, end] = viewRange;
+    const span = Math.max(2, end - start);
+    const centerSample = Math.round(start + span / 2);
+    const bandHalfSamples = Math.max(2, Math.round(span * 0.12));
+    let vMin = 0, vMax = 10;
+    if (data?.signals?.length) {
+      let mn = Infinity; let mx = -Infinity;
+      data.signals.forEach((sig, i) => {
+        if ((groups[i] || 1) !== groupIdx || !visible[i]) return;
+        for (let s = start; s < end; s++) {
+          const val = sig.values?.[s];
+          if (val === null || val === undefined || Number.isNaN(val)) continue;
+          if (val < mn) mn = val;
+          if (val > mx) mx = val;
+        }
+      });
+      if (mn !== Infinity && mx !== -Infinity) {
+        if (mn === mx) { mn -= 1; mx += 1; }
+        vMin = mn; vMax = mx;
+      }
+    }
+    const vSpan = Math.max(0.001, vMax - vMin);
+    const vCenter = vMin + vSpan / 2;
+    const vHalfBand = vSpan * 0.1;
     const overlay = baseType === "band"
       ? {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         type: "band",
         axis: axis || "y",
         visible: true,
-        min: 0,
-        max: 10,
-        sample: 0,
-        sampleEnd: 100,
+        min: vCenter - vHalfBand,
+        max: vCenter + vHalfBand,
+        sample: Math.max(0, centerSample - bandHalfSamples),
+        sampleEnd: Math.max(1, centerSample + bandHalfSamples),
         label: axis === "x" ? "Sample Band" : "Band",
         color: OVERLAY_COLOR_SWATCHES[groupIdx % OVERLAY_COLOR_SWATCHES.length],
         opacity: 0.12,
@@ -364,15 +389,15 @@ export default function App() {
         type: "line",
         axis: axis || "y",
         visible: true,
-        value: 0,
-        sample: 0,
+        value: vCenter,
+        sample: centerSample,
         label: axis === "x" ? "Sample Marker" : "Reference",
         color: OVERLAY_COLOR_SWATCHES[groupIdx % OVERLAY_COLOR_SWATCHES.length],
         dashed: true,
         opacity: 1,
       };
     setReferenceOverlays(prev => ({ ...prev, [groupIdx]: [...(prev[groupIdx] || []), overlay] }));
-  }, []);
+  }, [data, groups, visible, viewRange]);
   const updateOverlay = useCallback((groupIdx, overlayId, updates) => {
     setReferenceOverlays(prev => ({
       ...prev,
@@ -890,6 +915,33 @@ export default function App() {
                         >
                           + Derived
                         </button>
+                        <span style={{ position: "relative" }}>
+                          <button
+                            onClick={() => setOverlayPickerGroup(prev => prev === pane.groupIdx ? null : pane.groupIdx)}
+                            style={{ padding: "1px 6px", borderRadius: 4, border: `1px solid ${paneGc}66`, background: paneGc + "22", color: paneGc, fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, cursor: "pointer" }}
+                            title="Add reference overlay"
+                          >
+                            + Reference
+                          </button>
+                          {overlayPickerGroup === pane.groupIdx && (
+                            <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 4, minWidth: 140, background: t.panel, border: `1px solid ${t.border}`, borderRadius: 8, boxShadow: t.cardShadow, padding: 4, zIndex: 60 }}>
+                              {[
+                                { label: "H Line", type: "line:y" },
+                                { label: "H Band", type: "band:y" },
+                                { label: "V Line", type: "line:x" },
+                                { label: "V Band", type: "band:x" },
+                              ].map((opt) => (
+                                <div
+                                  key={opt.type}
+                                  onClick={() => { addOverlay(pane.groupIdx, opt.type); setOverlayPickerGroup(null); }}
+                                  style={{ padding: "4px 6px", borderRadius: 6, fontSize: 11, color: t.text2, cursor: "pointer", fontFamily: FONT_DISPLAY }}
+                                >
+                                  {opt.label}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </span>
                       </span>
                       {/* Unified Y-range toggle — only useful with 2+ signals */}
                       {pane.entries.length > 1 && (
