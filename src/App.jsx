@@ -15,6 +15,7 @@ import { computeStats } from "./utils/stats";
 import { downloadBlob } from "./utils/download";
 import { ensureFonts } from "./utils/fonts";
 import { buildEquationEvaluator } from "./utils/derivedEquation";
+import { hasSeamAdjustment } from "./utils/seamAdjustment";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
 
@@ -312,6 +313,7 @@ export default function App() {
       if (!paneMap.has(g)) paneMap.set(g, []);
       const baseColor = signalStyles[i]?.color || sc[i % sc.length];
       const baseDash = signalStyles[i]?.dash || "solid";
+      const seamOffset = signalStyles[i]?.seamOffset || 0;
 
       // Original signal entry (unless hidden by hideOriginal)
       if (!hideOriginal[i]) {
@@ -320,6 +322,7 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: baseDash,
+          seam: hasSeamAdjustment({ offset: seamOffset }) ? { offset: seamOffset, origin: 0, span: 360 } : null,
           isAvg: !!signal.isDerived,
         });
       }
@@ -351,6 +354,7 @@ export default function App() {
           unit: (metadata[i] || {}).unit || "",
           color: baseColor,
           dash: "dashed",
+          seam: hasSeamAdjustment({ offset: seamOffset }) ? { offset: seamOffset, origin: 0, span: 360 } : null,
           isAvg: true,
           parentIndex: i,
         });
@@ -394,7 +398,7 @@ export default function App() {
 
   const saveProject = useCallback(() => {
     if (!data) return;
-    const project = { version: 3, data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
+    const project = { version: 4, data, visible, groups, groupNames, signalStyles, metadata, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
     const blob = new Blob([JSON.stringify(project)], { type: "application/json" });
     const filename = `${(data.meta.trendName || "project").replace(/\s+/g, "_")}.tracelab`;
     downloadBlob(blob, filename, () => showToast("Project saved", "success"));
@@ -628,8 +632,9 @@ export default function App() {
                         const next = { ...cur };
                         if (updates.color !== undefined) next.color = updates.color;
                         if (updates.dash !== undefined) next.dash = updates.dash;
+                        if (updates.seamOffset !== undefined) next.seamOffset = updates.seamOffset;
                         // If both null, remove override entirely
-                        if (!next.color && !next.dash) { const n = { ...prev }; delete n[idx]; return n; }
+                        if (!next.color && !next.dash && !next.seamOffset) { const n = { ...prev }; delete n[idx]; return n; }
                         return { ...prev, [idx]: next };
                       })}
                       theme={theme}

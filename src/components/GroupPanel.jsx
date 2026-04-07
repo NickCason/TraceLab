@@ -142,6 +142,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
               onToggleVisible={onToggleVisible}
               onStyleChange={onStyleChange}
               isDerived={!!data.signals[i].isDerived}
+              seamOffset={signalStyles[i]?.seamOffset || 0}
               derivedType={data.signals[i].derivedType || derivedConfigs?.[i]?.type || null}
               onEditDerived={onEditDerived}
               onDeleteDerived={onDeleteDerived}
