@@ -943,7 +943,17 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       if (ns < 0) { ne -= ns; ns = 0; } if (ne > timestamps.length) { ns -= (ne - timestamps.length); ne = timestamps.length; }
       setViewRange([Math.max(0, ns), Math.min(timestamps.length, ne)]); return;
     }
-    const idx = getIdx(e); if (idx === null) return;
+    let idx = getIdx(e); if (idx === null) return;
+    if (!deltaMode && traceRef.current) {
+      const { plotW } = getGeo(traceRef.current);
+      const span = Math.max(1, end - start);
+      const denseMoveMode = signalEntries.length > 24 && span > Math.max(12000, Math.floor(plotW * 20));
+      if (denseMoveMode) {
+        const snap = Math.max(1, Math.floor((span / Math.max(1, plotW)) * 2));
+        idx = Math.round(idx / snap) * snap;
+        idx = Math.max(start, Math.min(end - 1, idx));
+      }
+    }
 
     if (deltaMode) {
       // Delta mode mousemove: ONLY live-preview cursor2 after cursor1 is placed
@@ -962,7 +972,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         });
       }
     }
-  }, [getIdx, getGeo, deltaMode, deltaLocked, cursorIdx, setCursorIdx, setCursor2Idx, timestamps, setViewRange, onOverlayChange, start, end, unifyRange, yRanges]);
+  }, [getIdx, getGeo, deltaMode, deltaLocked, cursorIdx, setCursorIdx, setCursor2Idx, timestamps, setViewRange, onOverlayChange, start, end, unifyRange, yRanges, signalEntries.length]);
 
   useEffect(() => () => { if (rafPending.current) cancelAnimationFrame(rafPending.current); }, []);
 
