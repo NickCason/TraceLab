@@ -1,0 +1,7 @@
+Controller Name:,"Line A, ""Primary"""
+Trend Name:,"Mixer Export"
+Sample Period:,"10 ms"
+Header:,"Date","Time","Flow, Main","Valve ""A"" Position","Comment"
+Data,2024-02-01,12:00:00;000,"1,234.50",1,"""Ready, Set"""
+Data,2024-02-01,12:00:00;010,"",0,
+Data,2024-02-01,12:00:00;020,"77.25",,"""

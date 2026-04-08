@@ -1,0 +1,8 @@
+Trend Name:,"Malformed Rows"
+Header:,"Date","Time","TagA","TagB"
+Data,2024-01-01,00:00:00;000,1,2
+Data,2024-01-01,not-a-time,3,4
+Data,not-a-date,00:00:00;010,5,6
+Data,2024-01-01,00:00:00;020,7
+Noise,2024-01-01,00:00:00;030,8,9
+Data,2024-01-01,00:00:00;030,,10
