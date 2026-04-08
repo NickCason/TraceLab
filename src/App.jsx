@@ -497,45 +497,41 @@ export default function App() {
   }, [data, cursorIdx]);
   const cursor2Values = useMemo(() => { if (!data || cursor2Idx === null) return null; return data.signals.map(s => s.values[cursor2Idx]); }, [data, cursor2Idx]);
 
-  // Build chart panes from groups (1-8)
-  const chartPanes = useMemo(() => buildChartPanes({
-    data,
+  const buildDatasetPanes = useCallback((dataset, state, paneIdPrefix, includeSeam = false) => {
+    if (!dataset || !state) return [];
+    return buildChartPanes({
+      data: dataset,
+      visible: state.visible,
+      groups: state.groups,
+      signalStyles: state.signalStyles,
+      metadata: state.metadata,
+      avgWindow: state.avgWindow,
+      hideOriginal: state.hideOriginal,
+      getDisplayName: (i) => state.metadata?.[i]?.displayName || dataset.tagNames?.[i] || `Signal ${i}`,
+      getGroupLabel: (g) => state.groupNames?.[g] || `Group ${GROUP_LABELS[g - 1]}`,
+      getAutoSignalColor,
+      theme,
+      palette: t.sigColors,
+      resolveSeam: includeSeam ? resolveSignalSeam : undefined,
+      paneIdPrefix,
+    });
+  }, [theme, t.sigColors]);
+
+  // Shared pane-prep path for primary and comparison datasets.
+  const chartPanes = useMemo(() => buildDatasetPanes(data, {
     visible,
     groups,
     signalStyles,
     metadata,
     avgWindow,
     hideOriginal,
-    getDisplayName,
-    getGroupLabel,
-    getAutoSignalColor,
-    theme,
-    palette: t.sigColors,
-    resolveSeam: resolveSignalSeam,
-    paneIdPrefix: "group",
-  }), [data, visible, groups, signalStyles, metadata, avgWindow, hideOriginal, getDisplayName, getGroupLabel, theme, t.sigColors]);
+    groupNames,
+  }, 'group', true), [data, visible, groups, signalStyles, metadata, avgWindow, hideOriginal, groupNames, buildDatasetPanes]);
 
-  // Build chart panes for the comparison dataset (mirrors chartPanes logic)
   const comparisonChartPanes = useMemo(() => {
     if (!comparisonData || !comparisonState) return [];
-    const getCompDisplayName = (i) => comparisonState.metadata?.[i]?.displayName || comparisonData.tagNames[i] || `Signal ${i}`;
-    const getCompGroupLabel = (g) => comparisonState.groupNames?.[g] || `Group ${GROUP_LABELS[g - 1]}`;
-    return buildChartPanes({
-      data: comparisonData,
-      visible: comparisonState.visible,
-      groups: comparisonState.groups,
-      signalStyles: comparisonState.signalStyles,
-      metadata: comparisonState.metadata,
-      avgWindow: comparisonState.avgWindow,
-      hideOriginal: comparisonState.hideOriginal,
-      getDisplayName: getCompDisplayName,
-      getGroupLabel: getCompGroupLabel,
-      getAutoSignalColor,
-      theme,
-      palette: t.sigColors,
-      paneIdPrefix: "cmp-group",
-    });
-  }, [comparisonData, comparisonState, theme, t.sigColors]);
+    return buildDatasetPanes(comparisonData, comparisonState, 'cmp-group', false);
+  }, [comparisonData, comparisonState, buildDatasetPanes]);
 
   // Compute a global max edge label width across ALL panes so x-axes align
   const globalEdgeLabelWidth = useMemo(() => {
