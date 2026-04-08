@@ -18,6 +18,7 @@ import { ensureFonts } from "./utils/fonts";
 import { buildEquationEvaluator } from "./utils/derivedEquation";
 import { clampSeamPercent, hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./utils/seamAdjustment";
 import { computeAlignmentInfo } from "./utils/mergeDatasets";
+import { buildProjectPayload, hydrateProjectData } from "./utils/projectPersistence";
 import ImportDialog from "./components/ImportDialog";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
@@ -389,7 +390,7 @@ export default function App() {
     showToast(`Comparison mode: ${newData.tagNames.length} tags loaded`, "success");
   }, [showToast]);
 
-  const handleDrop = useCallback((e) => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) { if (f.name.endsWith(".tracelab")) loadProject(f); else handleFile(f); } }, [handleFile]);
+  const handleDrop = useCallback((e) => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) { if (f.name.endsWith(".tracelab")) loadProject(f); else handleFile(f); } }, [handleFile, loadProject]);
 
   const toggleSignal = (i) => setVisible(v => { const n = [...v]; n[i] = !n[i]; return n; });
   const setGroup = (i, g) => setGroups(p => { const n = [...p]; n[i] = g; return n; });
@@ -685,11 +686,11 @@ export default function App() {
 
   const saveProject = useCallback(() => {
     if (!data) return;
-    const project = { version: 6, data, visible, groups, groupNames, signalStyles, metadata, referenceOverlays, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs, importMode, comparisonData: importMode === "comparison" ? comparisonData : undefined, comparisonState: importMode === "comparison" ? comparisonState : undefined };
+    const project = buildProjectPayload({ data, visible, groups, groupNames, signalStyles, metadata, referenceOverlays, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs, importMode, comparisonData, comparisonState });
     const blob = new Blob([JSON.stringify(project)], { type: "application/json" });
     const filename = `${(data.meta.trendName || "project").replace(/\s+/g, "_")}.tracelab`;
     downloadBlob(blob, filename, () => showToast("Project saved", "success"));
-  }, [data, visible, groups, groupNames, signalStyles, metadata, referenceOverlays, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs, showToast]);
+  }, [data, visible, groups, groupNames, signalStyles, metadata, referenceOverlays, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs, importMode, comparisonData, comparisonState, showToast]);
 
   const loadProject = useCallback((file) => {
     const reader = new FileReader();
@@ -697,21 +698,20 @@ export default function App() {
       try {
         const proj = JSON.parse(e.target.result);
         if (proj.version && proj.data) {
-          proj.data.signals.forEach(sig => { const uniq = new Set(sig.values.filter(v => v !== null)); sig.isDigital = uniq.size <= 2 && [...uniq].every(v => v === 0 || v === 1 || Math.abs(v) < 0.01 || Math.abs(v - 1) < 0.01); });
-          setData(proj.data); setVisible(proj.visible || proj.data.signals.map(() => true));
+          const loadedDerived = proj.derivedConfigs || {};
+          const finalData = hydrateProjectData(proj.data, loadedDerived, recomputeDerivedSignals);
+
+          setData(finalData);
+          setVisible(proj.visible || finalData.signals.map(() => true));
           // Backward compat: convert old formats to groups 1-8
           if (proj.groups) {
             // Migrate any group-0 values to group 1
             setGroups(proj.groups.map(g => g < 1 ? 1 : g));
           }
           else if (proj.isolated) setGroups(proj.isolated.map((iso, i) => iso ? (i % MAX_GROUPS) + 1 : 1));
-          else setGroups(proj.data.signals.map((_, i) => (i % MAX_GROUPS) + 1));
-          setMetadata(proj.metadata || {}); setGroupNames(proj.groupNames || {}); setSignalStyles(proj.signalStyles || {}); setReferenceOverlays(proj.referenceOverlays || {}); setViewRange(proj.viewRange || [0, proj.data.timestamps.length]);
-          const loadedDerived = proj.derivedConfigs || {};
+          else setGroups(finalData.signals.map((_, i) => (i % MAX_GROUPS) + 1));
+          setMetadata(proj.metadata || {}); setGroupNames(proj.groupNames || {}); setSignalStyles(proj.signalStyles || {}); setReferenceOverlays(proj.referenceOverlays || {}); setViewRange(proj.viewRange || [0, finalData.timestamps.length]);
           setDerivedConfigs(loadedDerived);
-          if (Object.keys(loadedDerived).length > 0) {
-            proj.data = recomputeDerivedSignals(proj.data, loadedDerived);
-          }
           setRebaseOffset(proj.rebaseOffset || 0); setDeltaMode(proj.deltaMode || false);
           if (proj.showPills !== undefined) setShowPills(proj.showPills);
           if (proj.showEdgeValues !== undefined) setShowEdgeValues(proj.showEdgeValues);

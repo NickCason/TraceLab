@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { fmtDateISO, fmtTsClean } from "../utils/date";
 import { downloadBlob } from "../utils/download";
-import { buildDefaultExportPens } from "../utils/exportPens";
+import { buildDefaultExportPens, resolveExportWindow } from "../utils/exportPens";
 
 export default function ExportPanel({ data, metadata, viewRange, getDisplayName, theme, onToast, rebaseOffset }) {
   const t = THEMES[theme];
@@ -17,9 +17,12 @@ export default function ExportPanel({ data, metadata, viewRange, getDisplayName,
   const multipliers = [1, 2, 3, 4, 5, 10, 20, 50, 100];
   const togglePen = (i) => setExportPens(p => { const n = [...p]; n[i] = !n[i]; return n; });
   const selPens = exportPens.map((v, i) => v ? i : -1).filter(i => i >= 0); const hasSel = selPens.length > 0;
-  const [rs, re] = exportRange === "view" ? viewRange : [0, data.timestamps.length];
-  const srcSamples = re - rs; const outSamples = Math.ceil(srcSamples / rateMultiplier); const effRate = basePeriod * rateMultiplier;
+  const rangeInfo = useMemo(() => resolveExportWindow(data.timestamps, viewRange, exportRange), [data.timestamps, viewRange, exportRange]);
+  const rs = rangeInfo.start;
+  const re = rangeInfo.end;
+  const srcSamples = Math.max(0, re - rs); const outSamples = Math.ceil(srcSamples / rateMultiplier); const effRate = basePeriod * rateMultiplier;
   const buildCSV = useCallback(() => {
+    if (!rangeInfo.ok) throw new Error(rangeInfo.reason);
     const L = []; L.push("# TraceLab Export", `# Source Trend: ${data.meta.trendName || "Unknown"}`, `# Controller: ${data.meta.controller || "Unknown"}`, `# Export Date: ${fmtTsClean(Date.now())}`, `# Original Sample Rate: ${basePeriod} ${baseUnit}`, `# Export Sample Rate: ${effRate} ${baseUnit} (${rateMultiplier}x)`);
     if (rebaseOffset !== 0) L.push(`# Timestamp Rebase: ${rebaseOffset >= 0 ? "+" : ""}${rebaseOffset} ms`);
     L.push(`# Time Range: ${fmtTsClean(data.timestamps[rs] + rebaseOffset)} to ${fmtTsClean(data.timestamps[Math.min(re, data.timestamps.length) - 1] + rebaseOffset)}`, `# Samples: ${outSamples.toLocaleString()} (from ${srcSamples.toLocaleString()} source)`, `# Tags: ${selPens.length} of ${data.signals.length}`, "#");
@@ -28,7 +31,7 @@ export default function ExportPanel({ data, metadata, viewRange, getDisplayName,
     const t0 = data.timestamps[rs] + rebaseOffset; let sn = 0;
     for (let i = rs; i < re; i += rateMultiplier) { const ts = data.timestamps[i] + rebaseOffset; const row = [sn, fmtTsClean(ts), (ts - t0).toFixed(1)]; selPens.forEach(si => { const v = data.signals[si].values[i]; row.push(v !== null ? v : ""); }); L.push(row.join(",")); sn++; }
     return L.join("\n");
-  }, [data, metadata, selPens, rateMultiplier, rs, re, basePeriod, baseUnit, effRate, outSamples, srcSamples, rebaseOffset]);
+  }, [data, metadata, selPens, rateMultiplier, rs, re, basePeriod, baseUnit, effRate, outSamples, srcSamples, rebaseOffset, rangeInfo]);
   const previewLines = useMemo(() => { if (!showPreview) return []; const csv = buildCSV(); const all = csv.split("\n"); const cm = all.filter(l => l.startsWith("#")); const hi = all.findIndex(l => l.startsWith("Sample,")); if (hi === -1) return all.slice(0, 20); const r = []; r.push(...cm.slice(0, 9)); if (cm.length > 9) r.push(`  ... ${cm.length - 9} more`); r.push("", all[hi]); const dr = all.slice(hi + 1); r.push(...dr.slice(0, 5)); if (dr.length > 5) r.push(`  ... ${dr.length - 5} more rows`); return r; }, [showPreview, buildCSV]);
   const handleExport = () => { try { const csv = buildCSV(); const blob = new Blob([csv], { type: "text/csv" }); const filename = `${(data.meta.trendName || "export").replace(/\s+/g, "_").replace(/[^\w-]/g, "")}_${effRate}${baseUnit}_${fmtDateISO(Date.now())}.csv`; downloadBlob(blob, filename, () => onToast(`Exported ${outSamples.toLocaleString()} samples`, "success")); } catch (e) { onToast("Export failed: " + e.message, "error"); } };
   const ls = { fontSize: 13, color: t.text3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, marginBottom: 6, fontFamily: FONT_DISPLAY };
@@ -45,7 +48,8 @@ export default function ExportPanel({ data, metadata, viewRange, getDisplayName,
       <div style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 10, background: t.surface, border: `1px solid ${t.borderSubtle}`, boxShadow: t.cardShadow }}>{[["Output Rows", outSamples.toLocaleString(), t.text1], ["Columns", `3 + ${selPens.length} tags`, t.text1], ["Rate", `${effRate} ${baseUnit}`, t.green], ["Reduction", rateMultiplier > 1 ? `${((1 - 1 / rateMultiplier) * 100).toFixed(0)}% smaller` : "None", rateMultiplier > 1 ? t.warn : t.text4]].map(([l, v, c]) => <div key={l} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}><span style={{ color: t.text3, fontFamily: FONT_DISPLAY, fontWeight: 500 }}>{l}</span><span style={{ color: c, fontWeight: 700, fontFamily: FONT_MONO }}>{v}</span></div>)}</div>
       <button onClick={() => setShowPreview(!showPreview)} style={{ width: "100%", padding: "5px 0", fontSize: 13, fontFamily: FONT_DISPLAY, cursor: "pointer", borderRadius: 8, fontWeight: 600, letterSpacing: 0.8, marginBottom: 4, border: `1px solid ${t.border}`, background: showPreview ? t.surface : "transparent", color: t.text3 }}>{showPreview ? "HIDE PREVIEW" : "SHOW PREVIEW"}</button>
       {showPreview && <div style={{ maxHeight: 160, overflow: "auto", marginBottom: 6, borderRadius: 8, background: theme === "dark" ? "#131314" : "#d9d5d1", border: `1px solid ${t.borderSubtle}`, padding: 8 }}>{previewLines.map((line, li) => <div key={li} style={{ fontSize: 12, fontFamily: FONT_MONO, whiteSpace: "pre", color: line.startsWith("#") ? t.text4 : line.startsWith("Sample") ? t.accent : line.startsWith("  ...") ? t.text3 : t.text2, lineHeight: "14px" }}>{line}</div>)}</div>}
-      <button onClick={handleExport} disabled={!hasSel} style={{ width: "100%", padding: "10px 0", fontSize: 13, fontFamily: FONT_DISPLAY, cursor: hasSel ? "pointer" : "not-allowed", borderRadius: 10, fontWeight: 700, letterSpacing: 1.2, border: `1px solid ${hasSel ? t.green + "44" : t.border}`, background: hasSel ? t.green + "22" : t.surface, color: hasSel ? t.green : t.text4, flexShrink: 0 }}>EXPORT CSV</button>
+      {!rangeInfo.ok && <div style={{ fontSize: 11, color: t.warn, marginBottom: 6, fontFamily: FONT_MONO }}>{rangeInfo.reason}</div>}
+      <button onClick={handleExport} disabled={!hasSel || !rangeInfo.ok} style={{ width: "100%", padding: "10px 0", fontSize: 13, fontFamily: FONT_DISPLAY, cursor: (hasSel && rangeInfo.ok) ? "pointer" : "not-allowed", borderRadius: 10, fontWeight: 700, letterSpacing: 1.2, border: `1px solid ${(hasSel && rangeInfo.ok) ? t.green + "44" : t.border}`, background: (hasSel && rangeInfo.ok) ? t.green + "22" : t.surface, color: (hasSel && rangeInfo.ok) ? t.green : t.text4, flexShrink: 0 }}>EXPORT CSV</button>
     </div>
   );
 }
