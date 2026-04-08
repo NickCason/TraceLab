@@ -500,6 +500,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     const { W, H, pad, plotW, plotH } = getGeo(traceRef.current);
     canvas.width = W * dpr; canvas.height = H * dpr; canvas.style.width = W + "px"; canvas.style.height = H + "px"; ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H); const sc = end - start;
+    const allowNullInterpolation = sc <= Math.max(6000, Math.floor(plotW * 12));
     const drawCursorHandleTag = (x, label, color) => {
       const text = `${label} ↕`;
       const tagY = pad.top + 11;
@@ -556,6 +557,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         let isInterpolated = false;
 
         if (plotV === null || rawV === null) {
+          if (!allowNullInterpolation) return;
           // Null at this cursor position — scan for nearest upstream/downstream non-null
           // and show an interpolated midpoint so the pill always appears.
           let upV = null, downV = null;
