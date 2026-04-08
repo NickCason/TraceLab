@@ -37,7 +37,18 @@ test('project roundtrip restores derived configs, overlays/groups, and compariso
   assert.deepEqual(normalized.comparisonState, {
     visible: [true],
     groups: [1],
+    groupNames: {},
+    signalStyles: {},
+    metadata: {},
+    referenceOverlays: {},
+    derivedConfigs: {},
+    splitRanges: {},
+    avgWindow: {},
+    hideOriginal: {},
     viewRange: [0, 2],
+    rebaseOffset: 0,
+    cursorIdx: null,
+    cursor2Idx: null,
   });
 
   const payload = buildProjectPayload({
