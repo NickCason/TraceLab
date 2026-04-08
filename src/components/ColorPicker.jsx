@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 
-export default function ColorPicker({ value, fallbackColor, swatches = [], onChange, t, title = "Choose color", width = "100%", height = 22, panelWidth = 160 }) {
+export default function ColorPicker({ value, fallbackColor, swatches = [], onChange, t, title = "Choose color", width = "100%", height = 22, panelWidth = 160, placementMode = "auto" }) {
   const [open, setOpen] = useState(false);
   const popoverRef = useRef(null);
   const triggerRef = useRef(null);
@@ -27,7 +27,16 @@ export default function ColorPicker({ value, fallbackColor, swatches = [], onCha
       const spaceTop = triggerRect.top;
 
       const next = {};
-      if (spaceRight < panelRect.width + gap && spaceLeft > spaceRight) {
+      if (placementMode === "bottom-right") {
+        // Prefer opening below and to the right of the trigger.
+        if (spaceRight < panelRect.width + gap && spaceLeft > spaceRight) {
+          next.left = "auto";
+          next.right = 0;
+        } else {
+          next.right = "auto";
+          next.left = 0;
+        }
+      } else if (spaceRight < panelRect.width + gap && spaceLeft > spaceRight) {
         next.right = "auto";
         next.left = 0;
       } else {
@@ -53,7 +62,7 @@ export default function ColorPicker({ value, fallbackColor, swatches = [], onCha
       window.removeEventListener("resize", positionPanel);
       window.removeEventListener("scroll", positionPanel, true);
     };
-  }, [open]);
+  }, [open, placementMode]);
 
   useEffect(() => {
     if (!open) return;

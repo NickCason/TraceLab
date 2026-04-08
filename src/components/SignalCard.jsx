@@ -142,6 +142,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
               width={24}
               height={20}
               panelWidth={170}
+              placementMode="bottom-right"
             />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 3, flex: 1 }}>
               {PALETTE.slice(0, 12).map(c => (
