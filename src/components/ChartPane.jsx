@@ -500,6 +500,8 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     const { W, H, pad, plotW, plotH } = getGeo(traceRef.current);
     canvas.width = W * dpr; canvas.height = H * dpr; canvas.style.width = W + "px"; canvas.style.height = H + "px"; ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H); const sc = end - start;
+    const allowNullInterpolation = sc <= Math.max(4000, Math.floor(plotW * 5));
+    const denseCursorMode = !deltaMode && signalEntries.length > 16 && sc > Math.max(5000, Math.floor(plotW * 8));
     const drawCursorHandleTag = (x, label, color) => {
       const text = `${label} ↕`;
       const tagY = pad.top + 11;
@@ -547,6 +549,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       // Dashed vertical line
       ctx.strokeStyle = col; ctx.globalAlpha = alpha; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
       ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      if (denseCursorMode) return;
 
       const pills = []; // collect pill positions to avoid overlaps
       signalEntries.forEach((entry, si) => {
@@ -556,6 +559,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         let isInterpolated = false;
 
         if (plotV === null || rawV === null) {
+          if (!allowNullInterpolation) return;
           // Null at this cursor position — scan for nearest upstream/downstream non-null
           // and show an interpolated midpoint so the pill always appears.
           let upV = null, downV = null;
@@ -939,7 +943,17 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       if (ns < 0) { ne -= ns; ns = 0; } if (ne > timestamps.length) { ns -= (ne - timestamps.length); ne = timestamps.length; }
       setViewRange([Math.max(0, ns), Math.min(timestamps.length, ne)]); return;
     }
-    const idx = getIdx(e); if (idx === null) return;
+    let idx = getIdx(e); if (idx === null) return;
+    if (!deltaMode && traceRef.current) {
+      const { plotW } = getGeo(traceRef.current);
+      const span = Math.max(1, end - start);
+      const denseMoveMode = signalEntries.length > 16 && span > Math.max(5000, Math.floor(plotW * 8));
+      if (denseMoveMode) {
+        const snap = Math.max(1, Math.floor((span / Math.max(1, plotW)) * 2));
+        idx = Math.round(idx / snap) * snap;
+        idx = Math.max(start, Math.min(end - 1, idx));
+      }
+    }
 
     if (deltaMode) {
       // Delta mode mousemove: ONLY live-preview cursor2 after cursor1 is placed
@@ -958,7 +972,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         });
       }
     }
-  }, [getIdx, getGeo, deltaMode, deltaLocked, cursorIdx, setCursorIdx, setCursor2Idx, timestamps, setViewRange, onOverlayChange, start, end, unifyRange, yRanges]);
+  }, [getIdx, getGeo, deltaMode, deltaLocked, cursorIdx, setCursorIdx, setCursor2Idx, timestamps, setViewRange, onOverlayChange, start, end, unifyRange, yRanges, signalEntries.length]);
 
   useEffect(() => () => { if (rafPending.current) cancelAnimationFrame(rafPending.current); }, []);
 
