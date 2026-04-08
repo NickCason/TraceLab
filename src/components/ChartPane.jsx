@@ -1016,7 +1016,26 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       }
     }
   }, [deltaMode, deltaLocked, cursorIdx, getIdx, setCursorIdx, setCursor2Idx, setDeltaLocked]);
-  const handleWheel = useCallback((e) => { e.preventDefault(); const zoom = e.deltaY > 0 ? 1.15 : 0.85; const idx = getIdx(e); const center = idx !== null ? idx : Math.floor((start + end) / 2); const s2 = end - start; const nc = Math.max(50, Math.min(timestamps.length, Math.round(s2 * zoom))); const fr = (center - start) / s2; let ns = Math.round(center - fr * nc), ne = ns + nc; if (ns < 0) { ne -= ns; ns = 0; } if (ne > timestamps.length) { ns -= (ne - timestamps.length); ne = timestamps.length; } setViewRange([Math.max(0, ns), Math.min(timestamps.length, ne)]); }, [start, end, timestamps, getIdx, setViewRange]);
+  const handleWheel = useCallback((e) => {
+    e.preventDefault();
+    const s2 = end - start;
+    if (s2 <= 1 || timestamps.length <= 1) return;
+
+    // Use a continuous exponential zoom curve so wheel motion maps smoothly
+    // across the full zoom range instead of stepping by large fixed jumps.
+    const zoom = Math.exp(Math.max(-1.2, Math.min(1.2, e.deltaY * 0.0025)));
+    const idx = getIdx(e);
+    const center = idx !== null ? idx : Math.floor((start + end) / 2);
+    const minWindow = Math.min(10, timestamps.length);
+    const nc = Math.max(minWindow, Math.min(timestamps.length, s2 * zoom));
+    const fr = (center - start) / s2;
+    let ns = Math.round(center - fr * nc);
+    let ne = Math.round(ns + nc);
+
+    if (ns < 0) { ne -= ns; ns = 0; }
+    if (ne > timestamps.length) { ns -= (ne - timestamps.length); ne = timestamps.length; }
+    setViewRange([Math.max(0, ns), Math.min(timestamps.length, ne)]);
+  }, [start, end, timestamps, getIdx, setViewRange]);
   const handleMouseDown = useCallback((e) => {
     if (e.button === 0) {
       const target = getOverlayDragTarget(e);
