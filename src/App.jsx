@@ -19,6 +19,8 @@ import { buildEquationEvaluator } from "./utils/derivedEquation";
 import { clampSeamPercent, hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./utils/seamAdjustment";
 import { computeAlignmentInfo } from "./utils/mergeDatasets";
 import { buildProjectPayload, classifyDroppedFile, hydrateProjectData, normalizeLoadedProject, parseProjectFileText } from "./utils/projectPersistence";
+import { applyLoadedDataset, createComparisonState } from "./utils/sessionState";
+import { buildChartPanes } from "./utils/buildChartPanes";
 import ImportDialog from "./components/ImportDialog";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
@@ -314,17 +316,18 @@ export default function App() {
       .then((csvText) => {
         const parsed = parseStudio5000CSV(csvText);
         if (!parsed) throw new Error("Unsupported CSV format");
+        const reset = applyLoadedDataset(parsed);
         setData(parsed);
-        setVisible(parsed.signals.map(() => true));
-        setGroups(parsed.signals.map((_, i) => (i % MAX_GROUPS) + 1));
-        setViewRange([0, parsed.timestamps.length]);
-        setCursorIdx(null);
-        setCursor2Idx(null);
-        setMetadata({});
-        setSignalStyles({});
-        setReferenceOverlays({});
-        setDerivedConfigs({});
-        setRebaseOffset(0);
+        setVisible(reset.visible);
+        setGroups(reset.groups);
+        setViewRange(reset.viewRange);
+        setCursorIdx(reset.cursorIdx);
+        setCursor2Idx(reset.cursor2Idx);
+        setMetadata(reset.metadata);
+        setSignalStyles(reset.signalStyles);
+        setReferenceOverlays(reset.referenceOverlays);
+        setDerivedConfigs(reset.derivedConfigs);
+        setRebaseOffset(reset.rebaseOffset);
         setRebaseInput("");
         showToast(`Loaded default CSV: ${parsed.tagNames.length} tags`, "success");
       })
@@ -338,11 +341,12 @@ export default function App() {
     reader.onload = (e) => {
       const parsed = parseStudio5000CSV(e.target.result);
       if (parsed) {
-        setData(parsed); setVisible(parsed.signals.map(() => true));
-        setGroups(parsed.signals.map((_, i) => (i % MAX_GROUPS) + 1));
-        setViewRange([0, parsed.timestamps.length]);
-        setCursorIdx(null); setCursor2Idx(null);
-        setMetadata({}); setSignalStyles({}); setReferenceOverlays({}); setDerivedConfigs({}); setRebaseOffset(0); setRebaseInput("");
+        const reset = applyLoadedDataset(parsed);
+        setData(parsed); setVisible(reset.visible);
+        setGroups(reset.groups);
+        setViewRange(reset.viewRange);
+        setCursorIdx(reset.cursorIdx); setCursor2Idx(reset.cursor2Idx);
+        setMetadata(reset.metadata); setSignalStyles(reset.signalStyles); setReferenceOverlays(reset.referenceOverlays); setDerivedConfigs(reset.derivedConfigs); setRebaseOffset(reset.rebaseOffset); setRebaseInput("");
         setImportMode(null); setComparisonData(null); setComparisonState(null); setActiveSidebarDataset("primary");
         showToast(`Loaded ${parsed.tagNames.length} tags, ${parsed.timestamps.length.toLocaleString()} samples`, "success");
       } else showToast("Failed to parse CSV — unsupported format", "error");
@@ -375,15 +379,7 @@ export default function App() {
 
   const handleComparisonImport = useCallback((newData) => {
     setComparisonData(newData);
-    setComparisonState({
-      visible: newData.signals.map(() => true),
-      groups: newData.signals.map((_, i) => (i % MAX_GROUPS) + 1),
-      groupNames: {}, signalStyles: {}, metadata: {},
-      referenceOverlays: {}, derivedConfigs: {},
-      viewRange: [0, newData.timestamps.length],
-      rebaseOffset: 0, cursorIdx: null, cursor2Idx: null,
-      splitRanges: {}, avgWindow: {}, hideOriginal: {},
-    });
+    setComparisonState(createComparisonState(newData));
     setImportMode("comparison");
     setImportDialogOpen(false);
     setActiveSidebarDataset("primary");
@@ -502,143 +498,44 @@ export default function App() {
   const cursor2Values = useMemo(() => { if (!data || cursor2Idx === null) return null; return data.signals.map(s => s.values[cursor2Idx]); }, [data, cursor2Idx]);
 
   // Build chart panes from groups (1-8)
-  const chartPanes = useMemo(() => {
-    if (!data) return [];
-    const sc = t.sigColors;
-    const paneMap = new Map();
-
-    data.signals.forEach((signal, i) => {
-      if (!visible[i]) return;
-      const g = groups[i] || 1;
-      if (!paneMap.has(g)) paneMap.set(g, []);
-      const baseColor = signalStyles[i]?.color || getAutoSignalColor(theme, i) || sc[i % sc.length];
-      const baseDash = signalStyles[i]?.dash || "solid";
-      const baseStrokeMode = signalStyles[i]?.strokeMode || baseDash || "solid";
-      const baseThickness = Math.max(0.6, Number(signalStyles[i]?.thickness) || (signal.isDigital ? 2 : 1.5));
-      const baseOpacity = Math.max(0.1, Math.min(1, Number(signalStyles[i]?.opacity) || 0.92));
-      const seamCfg = resolveSignalSeam(signalStyles[i], signal.values);
-
-      // Original signal entry (unless hidden by hideOriginal)
-      if (!hideOriginal[i]) {
-        paneMap.get(g).push({
-          signal, originalIndex: i, displayName: getDisplayName(i),
-          unit: (metadata[i] || {}).unit || "",
-          color: baseColor,
-          dash: baseDash,
-          strokeMode: baseStrokeMode,
-          thickness: baseThickness,
-          opacity: baseOpacity,
-          seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
-          isAvg: !!signal.isDerived,
-        });
-      }
-
-      // Average line entry
-      const win = avgWindow[i] || 0;
-      if (win > 0) {
-        // Simple moving average with configurable window
-        const vals = signal.values;
-        const avgVals = new Array(vals.length);
-        // Use a ring buffer for the window
-        const buf = [];
-        let bufSum = 0;
-        for (let j = 0; j < vals.length; j++) {
-          if (vals[j] !== null) {
-            buf.push(vals[j]);
-            bufSum += vals[j];
-            if (buf.length > win) {
-              bufSum -= buf.shift();
-            }
-            avgVals[j] = bufSum / buf.length;
-          } else {
-            avgVals[j] = buf.length > 0 ? bufSum / buf.length : null;
-          }
-        }
-        const avgSignal = { values: avgVals, isDigital: false };
-        paneMap.get(g).push({
-          signal: avgSignal, originalIndex: i, displayName: `${getDisplayName(i)} (avg ${win})`,
-          unit: (metadata[i] || {}).unit || "",
-          color: baseColor,
-          dash: "dashed",
-          strokeMode: "dashed",
-          thickness: Math.max(0.6, baseThickness * 0.9),
-          opacity: Math.max(0.2, baseOpacity - 0.1),
-          seam: seamCfg.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null,
-          isAvg: true,
-          parentIndex: i,
-        });
-      }
-    });
-
-    const panes = [];
-    const sortedKeys = [...paneMap.keys()].sort((a, b) => a - b);
-    for (const g of sortedKeys) {
-      const entries = paneMap.get(g);
-      if (!entries.length) continue;
-      panes.push({ id: `group-${g}`, entries, label: getGroupLabel(g), groupIdx: g });
-    }
-    return panes;
-  }, [data, visible, groups, metadata, groupNames, signalStyles, t.sigColors, avgWindow, hideOriginal, theme]);
+  const chartPanes = useMemo(() => buildChartPanes({
+    data,
+    visible,
+    groups,
+    signalStyles,
+    metadata,
+    avgWindow,
+    hideOriginal,
+    getDisplayName,
+    getGroupLabel,
+    getAutoSignalColor,
+    theme,
+    palette: t.sigColors,
+    resolveSeam: resolveSignalSeam,
+    paneIdPrefix: "group",
+  }), [data, visible, groups, signalStyles, metadata, avgWindow, hideOriginal, getDisplayName, getGroupLabel, theme, t.sigColors]);
 
   // Build chart panes for the comparison dataset (mirrors chartPanes logic)
   const comparisonChartPanes = useMemo(() => {
     if (!comparisonData || !comparisonState) return [];
-    const { visible: cVis, groups: cGroups, signalStyles: cStyles, metadata: cMeta, avgWindow: cAvg, hideOriginal: cHide, groupNames: cGroupNames } = comparisonState;
-    const sc = t.sigColors;
-    const paneMap = new Map();
-    const getCompDisplayName = (i) => cMeta?.[i]?.displayName || comparisonData.tagNames[i] || `Signal ${i}`;
-    const getCompGroupLabel = (g) => cGroupNames?.[g] || `Group ${GROUP_LABELS[g - 1]}`;
-
-    comparisonData.signals.forEach((signal, i) => {
-      if (!cVis?.[i]) return;
-      const g = cGroups?.[i] || 1;
-      if (!paneMap.has(g)) paneMap.set(g, []);
-      const baseColor = cStyles?.[i]?.color || getAutoSignalColor(theme, i) || sc[i % sc.length];
-      const baseDash = cStyles?.[i]?.dash || "solid";
-      const baseStrokeMode = cStyles?.[i]?.strokeMode || baseDash || "solid";
-      const baseThickness = Math.max(0.6, Number(cStyles?.[i]?.thickness) || (signal.isDigital ? 2 : 1.5));
-      const baseOpacity = Math.max(0.1, Math.min(1, Number(cStyles?.[i]?.opacity) || 0.92));
-
-      if (!cHide?.[i]) {
-        paneMap.get(g).push({
-          signal, originalIndex: i, displayName: getCompDisplayName(i),
-          unit: cMeta?.[i]?.unit || "",
-          color: baseColor, dash: baseDash, strokeMode: baseStrokeMode,
-          thickness: baseThickness, opacity: baseOpacity, seam: null, isAvg: !!signal.isDerived,
-        });
-      }
-
-      const win = cAvg?.[i] || 0;
-      if (win > 0) {
-        const vals = signal.values;
-        const avgVals = new Array(vals.length);
-        const buf = []; let bufSum = 0;
-        for (let j = 0; j < vals.length; j++) {
-          if (vals[j] !== null) {
-            buf.push(vals[j]); bufSum += vals[j];
-            if (buf.length > win) bufSum -= buf.shift();
-            avgVals[j] = bufSum / buf.length;
-          } else { avgVals[j] = buf.length > 0 ? bufSum / buf.length : null; }
-        }
-        paneMap.get(g).push({
-          signal: { values: avgVals, isDigital: false }, originalIndex: i,
-          displayName: `${getCompDisplayName(i)} (avg ${win})`, unit: cMeta?.[i]?.unit || "",
-          color: baseColor, dash: "dashed", strokeMode: "dashed",
-          thickness: Math.max(0.6, baseThickness * 0.9), opacity: Math.max(0.2, baseOpacity - 0.1),
-          seam: null, isAvg: true, parentIndex: i,
-        });
-      }
+    const getCompDisplayName = (i) => comparisonState.metadata?.[i]?.displayName || comparisonData.tagNames[i] || `Signal ${i}`;
+    const getCompGroupLabel = (g) => comparisonState.groupNames?.[g] || `Group ${GROUP_LABELS[g - 1]}`;
+    return buildChartPanes({
+      data: comparisonData,
+      visible: comparisonState.visible,
+      groups: comparisonState.groups,
+      signalStyles: comparisonState.signalStyles,
+      metadata: comparisonState.metadata,
+      avgWindow: comparisonState.avgWindow,
+      hideOriginal: comparisonState.hideOriginal,
+      getDisplayName: getCompDisplayName,
+      getGroupLabel: getCompGroupLabel,
+      getAutoSignalColor,
+      theme,
+      palette: t.sigColors,
+      paneIdPrefix: "cmp-group",
     });
-
-    const panes = [];
-    const sortedKeys = [...paneMap.keys()].sort((a, b) => a - b);
-    for (const g of sortedKeys) {
-      const entries = paneMap.get(g);
-      if (!entries.length) continue;
-      panes.push({ id: `cmp-group-${g}`, entries, label: getCompGroupLabel(g), groupIdx: g });
-    }
-    return panes;
-  }, [comparisonData, comparisonState, t.sigColors, theme]);
+  }, [comparisonData, comparisonState, theme, t.sigColors]);
 
   // Compute a global max edge label width across ALL panes so x-axes align
   const globalEdgeLabelWidth = useMemo(() => {
@@ -841,7 +738,7 @@ export default function App() {
           {importMode === "unified" && <div style={{ fontSize: 12, color: t.green, fontWeight: 700, letterSpacing: 1, padding: "2px 8px", borderRadius: 6, background: `${t.green}18`, border: `1px solid ${t.green}33`, fontFamily: FONT_DISPLAY }}>UNIFIED · {data?.signals.length} tags</div>}
           {importMode === "comparison" && <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.green, fontWeight: 700, letterSpacing: 1, padding: "2px 8px", borderRadius: 6, background: `${t.green}18`, border: `1px solid ${t.green}33`, fontFamily: FONT_DISPLAY }}>
             COMPARISON
-            <span onClick={() => { setImportMode(null); setComparisonData(null); setComparisonState(null); }} title="Exit comparison mode" style={{ cursor: "pointer", opacity: 0.7, fontSize: 13, lineHeight: 1 }}>✕</span>
+            <span onClick={() => { setImportMode(null); setComparisonData(null); setComparisonState(null); setActiveSidebarDataset("primary"); }} title="Exit comparison mode" style={{ cursor: "pointer", opacity: 0.7, fontSize: 13, lineHeight: 1 }}>✕</span>
           </div>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

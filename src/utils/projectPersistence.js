@@ -1,4 +1,6 @@
 import { MAX_GROUPS } from '../constants/groups.js';
+import { CURRENT_PROJECT_VERSION, migrateProject } from './projectMigration.js';
+import { hydrateComparisonState } from './sessionState.js';
 
 export function buildProjectPayload(state) {
   const {
@@ -24,7 +26,7 @@ export function buildProjectPayload(state) {
   } = state;
 
   return {
-    version: 6,
+    version: CURRENT_PROJECT_VERSION,
     data,
     visible,
     groups,
@@ -122,15 +124,15 @@ export function normalizeLoadedProject(proj, finalData) {
     hideOriginal: proj?.hideOriginal || {},
     importMode: proj?.importMode === 'comparison' ? (comparisonModeValid ? 'comparison' : null) : (proj?.importMode || null),
     comparisonData: comparisonModeValid ? proj.comparisonData : null,
-    comparisonState: comparisonModeValid ? proj.comparisonState : null,
+    comparisonState: comparisonModeValid ? hydrateComparisonState(proj.comparisonState, proj.comparisonData) : null,
   };
 }
 
 export function parseProjectFileText(rawText) {
   try {
-    const proj = JSON.parse(rawText);
-    if (proj?.version && proj?.data) return { ok: true, project: proj };
-    return { ok: false, error: 'Invalid project file' };
+    const parsed = JSON.parse(rawText);
+    if (!parsed?.data) return { ok: false, error: 'Invalid project file' };
+    return migrateProject(parsed);
   } catch {
     return { ok: false, error: 'Failed to parse project file' };
   }
