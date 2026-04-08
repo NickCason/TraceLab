@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { GROUP_LABELS } from "../constants/groups";
-import { getAutoSignalColor, OVERLAY_COLOR_SWATCHES } from "../constants/colors";
+import { EXTENDED_COLOR_SWATCHES, getAutoSignalColor } from "../constants/colors";
 import SignalCard from "./SignalCard";
 import ColorPicker from "./ColorPicker";
 
@@ -181,10 +181,11 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
                 <ColorPicker
                   value={ov.color}
                   fallbackColor={color}
-                  swatches={OVERLAY_COLOR_SWATCHES}
+                  swatches={EXTENDED_COLOR_SWATCHES}
                   onChange={(nextColor) => onUpdateOverlay?.(groupIdx, ov.id, { color: nextColor })}
                   t={t}
                   title="Choose overlay color"
+                  panelWidth={188}
                 />
               </div>
               {ov.type === "band" ? (

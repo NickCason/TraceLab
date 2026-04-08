@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
-import { SIGNAL_SWATCHES } from "../constants/colors";
+import { EXTENDED_COLOR_SWATCHES } from "../constants/colors";
 import Sparkline from "./Sparkline";
 import MarqueeText from "./MarqueeText";
 import ColorPicker from "./ColorPicker";
@@ -45,7 +45,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
     { value: "samples", label: "• • •", desc: "Samples Only" },
     { value: "hybrid_line_points", label: "— • —", desc: "Line + Points" },
   ];
-  const PALETTE = SIGNAL_SWATCHES;
+  const PALETTE = EXTENDED_COLOR_SWATCHES;
   const seamDomain = inferSeamDomain(signal.values);
   const effectiveSeamPct = seamOffsetPct !== undefined ? clampSeamPercent(seamOffsetPct) : seamOffsetToPercent(seamOffset, seamDomain.span);
 
