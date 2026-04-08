@@ -500,8 +500,9 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     const { W, H, pad, plotW, plotH } = getGeo(traceRef.current);
     canvas.width = W * dpr; canvas.height = H * dpr; canvas.style.width = W + "px"; canvas.style.height = H + "px"; ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H); const sc = end - start;
-    const allowNullInterpolation = sc <= Math.max(4000, Math.floor(plotW * 5));
-    const denseCursorMode = !deltaMode && signalEntries.length > 16 && sc > Math.max(5000, Math.floor(plotW * 8));
+    const allowNullInterpolation = sc <= Math.max(2500, Math.floor(plotW * 3));
+    const cursorDensityScore = (signalEntries.length * sc) / Math.max(1, plotW);
+    const denseCursorMode = !deltaMode && (sc > Math.max(7000, Math.floor(plotW * 6)) || cursorDensityScore > 90);
     const drawCursorHandleTag = (x, label, color) => {
       const text = `${label} ↕`;
       const tagY = pad.top + 11;
@@ -947,7 +948,8 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     if (!deltaMode && traceRef.current) {
       const { plotW } = getGeo(traceRef.current);
       const span = Math.max(1, end - start);
-      const denseMoveMode = signalEntries.length > 16 && span > Math.max(5000, Math.floor(plotW * 8));
+      const densityScore = (signalEntries.length * span) / Math.max(1, plotW);
+      const denseMoveMode = span > Math.max(7000, Math.floor(plotW * 6)) || densityScore > 90;
       if (denseMoveMode) {
         const snap = Math.max(1, Math.floor((span / Math.max(1, plotW)) * 2));
         idx = Math.round(idx / snap) * snap;
