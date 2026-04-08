@@ -1,0 +1,18 @@
+{
+  "version": 4,
+  "data": {
+    "meta": { "trendName": "Legacy Project" },
+    "timestamps": [1000, 1010],
+    "signals": [
+      { "name": "A", "values": [0, 1] },
+      { "name": "B", "values": [1, 0] },
+      { "name": "C", "values": [3.5, 3.6] }
+    ],
+    "tagNames": ["A", "B", "C"]
+  },
+  "groups": [0, 99, -4],
+  "lockedRanges": { "1": true, "2": false },
+  "showAvg": { "0": true, "2": true },
+  "importMode": "comparison",
+  "comparisonData": null
+}

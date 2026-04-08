@@ -1,0 +1,37 @@
+{
+  "version": 6,
+  "data": {
+    "meta": { "trendName": "Primary" },
+    "timestamps": [1700000000000, 1700000000010],
+    "signals": [
+      { "name": "Speed", "values": [100, 101] },
+      { "name": "Enable", "values": [1, 0] }
+    ],
+    "tagNames": ["Speed", "Enable"]
+  },
+  "derivedConfigs": {
+    "2": { "type": "equation", "name": "SpeedDelta", "expression": "s0 - 99" }
+  },
+  "visible": [true, true, true],
+  "groups": [1, 2, 3],
+  "groupNames": { "1": "Drivetrain" },
+  "signalStyles": { "0": { "color": "#fff" } },
+  "metadata": { "0": { "displayName": "Line Speed" } },
+  "referenceOverlays": { "1": [{ "name": "target", "value": 100 }] },
+  "viewRange": [0, 2],
+  "splitRanges": { "2": true },
+  "avgWindow": { "0": 10 },
+  "hideOriginal": { "2": true },
+  "importMode": "comparison",
+  "comparisonData": {
+    "meta": { "trendName": "Compare" },
+    "timestamps": [1700000000000, 1700000000010],
+    "signals": [{ "name": "Speed", "values": [95, 97] }],
+    "tagNames": ["Speed"]
+  },
+  "comparisonState": {
+    "visible": [true],
+    "groups": [1],
+    "viewRange": [0, 2]
+  }
+}
