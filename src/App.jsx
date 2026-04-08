@@ -386,8 +386,6 @@ export default function App() {
     showToast(`Comparison mode: ${newData.tagNames.length} tags loaded`, "success");
   }, [showToast]);
 
-  const handleDrop = useCallback((e) => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) { classifyDroppedFile(f.name) === "project" ? loadProject(f) : handleFile(f); } }, [handleFile, loadProject]);
-
   const toggleSignal = (i) => setVisible(v => { const n = [...v]; n[i] = !n[i]; return n; });
   const setGroup = (i, g) => setGroups(p => { const n = [...p]; n[i] = g; return n; });
   const combineAll = () => setGroups(p => p.map(() => 1));
@@ -621,6 +619,8 @@ export default function App() {
     };
     reader.readAsText(file);
   }, [showToast, recomputeDerivedSignals]);
+
+  const handleDrop = useCallback((e) => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) { classifyDroppedFile(f.name) === "project" ? loadProject(f) : handleFile(f); } }, [handleFile, loadProject]);
 
   const exportSnapshot = useCallback(() => {
     const traceCanvases = document.querySelectorAll('canvas[data-export="trace"]');
