@@ -61,7 +61,7 @@ const Sparkline = memo(function Sparkline({ values, color, width = 44, height = 
     return sampled.map((v, i) => `${i * step},${height - ((v - min) / r) * height}`).join(" ");
   }, [values, width, height]);
   if (!pts) return null;
-  return <svg width={width} height={height} style={{ display: "block" }}><polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg width={width} height={height} style={{ display: "block" }}><polyline points={pts} fill="none" stroke={color} strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 });
 
 

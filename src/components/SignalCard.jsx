@@ -82,12 +82,19 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
         </div>
         {/* Color/style picker trigger */}
         <div onClick={(e) => { e.stopPropagation(); setShowStylePicker(!showStylePicker); }} style={{
-          width: 12, height: 12, borderRadius: 3, cursor: "pointer",
+          width: 16, height: 16, borderRadius: 4, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
           color: vis ? color : t.text4,
-          boxShadow: vis ? `0 0 4px ${color}33` : "none", transition: "all 0.15s",
+          background: vis ? color + "14" : "transparent",
+          border: `1px solid ${vis ? color + "44" : t.borderSubtle}`,
+          boxShadow: vis ? `0 0 6px ${color}2a` : "none", transition: "all 0.15s",
         }} title="Signal settings">
-          <span style={{ fontSize: 12, lineHeight: "12px", fontWeight: 700 }}>⚙</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M19.14 12.94a7.88 7.88 0 0 0 .05-.94 7.88 7.88 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.63l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.36 7.36 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7.36 7.36 0 0 0-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.85a.5.5 0 0 0 .12.63l2.03 1.58a7.88 7.88 0 0 0-.05.94 7.88 7.88 0 0 0 .05.94L2.83 14.52a.5.5 0 0 0-.12.63l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.63l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"
+              fill="currentColor"
+            />
+          </svg>
         </div>
       </div>
       <div onClick={(e) => { e.stopPropagation(); onToggleVisible(index); }} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
@@ -108,7 +115,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
           </div>
         )}
       </div>
-      <Sparkline values={signal.values} color={color} width={36} height={14} />
+      <Sparkline values={signal.values} color={color} width={44} height={16} />
       {/* Drag handle hint */}
       <svg width="8" height="10" viewBox="0 0 8 10" style={{ flexShrink: 0, opacity: 0.25 }}>
         <circle cx="2" cy="2" r="1" fill={t.text3}/><circle cx="6" cy="2" r="1" fill={t.text3}/>
