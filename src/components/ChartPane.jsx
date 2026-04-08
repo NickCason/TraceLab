@@ -298,6 +298,13 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       const renderIdxs = shouldDecimate
         ? buildDecimatedIndices(signal.values, start, end, Math.floor(plotW * 1.8), (_, idx) => getPlotValue(entry, idx))
         : null;
+      const useWindowSearch = !renderIdxs?.length;
+      const readSample = (i) => {
+        if (useWindowSearch) return findInWindow(i);
+        const v = getPlotValue(entry, i);
+        if (v === null) return null;
+        return { v, vi: i };
+      };
       const walkIndices = (cb) => {
         if (renderIdxs?.length) {
           for (const i of renderIdxs) cb(i);
@@ -308,7 +315,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
 
       if (activeMode === "samples") {
         walkIndices((i) => {
-          const found = findInWindow(i); if (!found) return;
+          const found = readSample(i); if (!found) return;
           const { v, vi } = found;
           if (v < minV) { minV = v; minIdx = vi; }
           if (v > maxV) { maxV = v; maxIdx = vi; }
@@ -322,7 +329,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       } else {
         ctx.beginPath(); let started = false;
         walkIndices((i) => {
-          const found = findInWindow(i);
+          const found = readSample(i);
           if (!found) { started = false; return; }
           const { v, vi } = found;
           if (v < minV) { minV = v; minIdx = vi; }
@@ -346,7 +353,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.fillStyle = color;
           ctx.globalAlpha = Math.min(1, strokeAlpha + 0.05);
           for (let i = start; i < end; i += markerStride) {
-            const found = findInWindow(i); if (!found) continue;
+            const found = readSample(i); if (!found) continue;
             const { v, vi } = found;
             const x = pad.left + ((vi - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
             ctx.beginPath();
