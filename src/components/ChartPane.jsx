@@ -2,6 +2,7 @@ import { useRef, useCallback, useEffect, useMemo } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { fmtTime } from "../utils/date";
 import { normalizeToSeam } from "../utils/seamAdjustment";
+import { buildDecimatedIndices, computeRangeStats, profilePerf } from "../utils/chartPerf";
 
 function buildDeltaCursor(label, color, isDark) {
   const badgeBg = isDark ? "#111214" : "#ffffff";
@@ -26,24 +27,22 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     return entry.seam ? normalizeToSeam(raw, entry.seam) : raw;
   }, []);
 
+  const rangeStatsByEntry = useMemo(() => profilePerf('pane:range-stats', () => signalEntries.map((entry) => {
+    const seamKey = entry.seam ? `${entry.seam.offset}:${entry.seam.origin}:${entry.seam.span}` : 'none';
+    return computeRangeStats(
+      entry.signal.values,
+      start,
+      end,
+      (_, idx) => getPlotValue(entry, idx),
+      seamKey,
+    );
+  })), [signalEntries, start, end, getPlotValue]);
+
   const yRanges = useMemo(() => {
-    // Auto-range uses plotted values so seam adjustment can eliminate rollover spikes.
-    const raw = signalEntries.map((entry) => {
-      let min = Infinity;
-      let max = -Infinity;
-      for (let i = start; i < end; i++) {
-        const v = getPlotValue(entry, i);
-        if (v === null) continue;
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-      if (min === Infinity) return null;
-      return [min, max];
-    });
+    const raw = rangeStatsByEntry.map((stats) => (stats ? [stats.min, stats.max] : null));
 
     if (!unifyRange || signalEntries.length <= 1) {
-      // Independent ranges with per-signal padding
-      return raw.map(r => {
+      return raw.map((r) => {
         if (!r) return [0, 1];
         let [mn, mx] = r;
         if (mn === mx) { mn -= 1; mx += 1; }
@@ -52,9 +51,8 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       });
     }
 
-    // Unified: compute global range from raw values, THEN pad once
-    let gMin = Infinity, gMax = -Infinity;
-    raw.forEach(r => {
+    let gMin = Infinity; let gMax = -Infinity;
+    raw.forEach((r) => {
       if (!r) return;
       if (r[0] < gMin) gMin = r[0];
       if (r[1] > gMax) gMax = r[1];
@@ -64,42 +62,35 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     const p = (gMax - gMin) * 0.08;
     const unified = [gMin - p, gMax + p];
     return raw.map(() => unified);
-  }, [signalEntries, start, end, unifyRange, getPlotValue]);
+  }, [rangeStatsByEntry, signalEntries.length, unifyRange]);
 
   // Pre-compute max right-edge label width for dynamic padding
   // Use global width (from App) so all panes align, fall back to local computation
   const rightEdgeLabelWidth = useMemo(() => {
     if (!showEdgeValues) return 0;
     if (globalEdgeLabelWidth > 0) return globalEdgeLabelWidth;
-    // Fallback: local estimate
     let maxW = 0;
-    signalEntries.forEach(({ signal, unit }) => {
-      for (let i = end - 1; i >= start; i--) {
-        if (signal.values[i] !== null) {
-          const str = signal.values[i].toFixed(2) + (unit ? " " + unit : "");
-          maxW = Math.max(maxW, str.length * 6.5 + 14);
-          break;
-        }
-      }
+    signalEntries.forEach(({ signal, unit }, idx) => {
+      const lastIdx = rangeStatsByEntry[idx]?.lastIdx ?? -1;
+      if (lastIdx === -1 || signal.values[lastIdx] === null) return;
+      const str = signal.values[lastIdx].toFixed(2) + (unit ? " " + unit : "");
+      maxW = Math.max(maxW, str.length * 6.5 + 14);
     });
     return maxW;
-  }, [showEdgeValues, globalEdgeLabelWidth, signalEntries, start, end]);
+  }, [showEdgeValues, globalEdgeLabelWidth, signalEntries, rangeStatsByEntry]);
 
   const leftEdgeLabelWidth = useMemo(() => {
     if (!showEdgeValues) return 0;
     if (globalLeftEdgeLabelWidth > 0) return globalLeftEdgeLabelWidth;
     let maxW = 0;
-    signalEntries.forEach(({ signal, unit, isAvg }) => {
-      for (let i = start; i < end; i++) {
-        if (signal.values[i] !== null) {
-          const str = (isAvg ? "x̄ " : "") + signal.values[i].toFixed(2) + (unit ? " " + unit : "");
-          maxW = Math.max(maxW, str.length * 6.5 + 14);
-          break;
-        }
-      }
+    signalEntries.forEach(({ signal, unit, isAvg }, idx) => {
+      const firstIdx = rangeStatsByEntry[idx]?.firstIdx ?? -1;
+      if (firstIdx === -1 || signal.values[firstIdx] === null) return;
+      const str = (isAvg ? "x̄ " : "") + signal.values[firstIdx].toFixed(2) + (unit ? " " + unit : "");
+      maxW = Math.max(maxW, str.length * 6.5 + 14);
     });
     return maxW;
-  }, [showEdgeValues, globalLeftEdgeLabelWidth, signalEntries, start, end]);
+  }, [showEdgeValues, globalLeftEdgeLabelWidth, signalEntries, rangeStatsByEntry]);
 
   const cursorStyle = useMemo(() => {
     if (!deltaMode) return "grab";
@@ -118,7 +109,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
     return { W, H, pad, plotW: W - pad.left - pad.right, plotH: H - pad.top - pad.bottom };
   }, [compact, showTimeAxis, showEdgeValues, rightEdgeLabelWidth, leftEdgeLabelWidth]);
 
-  const drawTraces = useCallback(() => {
+  const drawTraces = useCallback(() => profilePerf(`pane:draw:${label || "unnamed"}`, () => {
     const canvas = traceRef.current; if (!canvas) return;
     const ctx = canvas.getContext("2d"); const dpr = window.devicePixelRatio || 1;
     const { W, H, pad, plotW, plotH } = getGeo(canvas);
@@ -140,6 +131,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       if (showTimeAxis) { const idx = start + Math.floor((sc / nX) * i); if (idx < timestamps.length) { ctx.fillStyle = t.text3; ctx.font = `11px ${FONT_MONO}`; ctx.textAlign = "center"; ctx.fillText(fmtTime(timestamps[idx] + rebaseOffset), x, pad.top + plotH + 16); } }
     }
     const stride = Math.max(1, Math.floor(sc / (plotW * 2)));
+    const shouldDecimate = sc > Math.max(5000, plotW * 6);
     const placedExtrema = [];
     const intersects = (a, b) => !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
     const placeExtremaBox = (prefX, prefY, bw, bh, kind) => {
@@ -294,9 +286,6 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
 
       // Null-aware sample finder: within a look-ahead window starting at i,
       // returns the first non-null {value, index} or null.
-      // lookAhead is at least 8 even when stride=1 so that interleaved-null
-      // merged datasets (every Nth index is null) still render connected lines.
-      // A gap of >lookAhead consecutive nulls correctly breaks the path.
       const lookAhead = Math.max(stride, 8);
       const findInWindow = (i) => {
         const wEnd = Math.min(i + lookAhead, end);
@@ -306,10 +295,20 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         }
         return null;
       };
+      const renderIdxs = shouldDecimate
+        ? buildDecimatedIndices(signal.values, start, end, Math.floor(plotW * 1.8), (_, idx) => getPlotValue(entry, idx))
+        : null;
+      const walkIndices = (cb) => {
+        if (renderIdxs?.length) {
+          for (const i of renderIdxs) cb(i);
+          return;
+        }
+        for (let i = start; i < end; i += stride) cb(i);
+      };
 
       if (activeMode === "samples") {
-        for (let i = start; i < end; i += stride) {
-          const found = findInWindow(i); if (!found) continue;
+        walkIndices((i) => {
+          const found = findInWindow(i); if (!found) return;
           const { v, vi } = found;
           if (v < minV) { minV = v; minIdx = vi; }
           if (v > maxV) { maxV = v; maxIdx = vi; }
@@ -319,12 +318,12 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.fillStyle = color;
           ctx.globalAlpha = strokeAlpha;
           ctx.fill();
-        }
+        });
       } else {
         ctx.beginPath(); let started = false;
-        for (let i = start; i < end; i += stride) {
+        walkIndices((i) => {
           const found = findInWindow(i);
-          if (!found) { started = false; continue; }
+          if (!found) { started = false; return; }
           const { v, vi } = found;
           if (v < minV) { minV = v; minIdx = vi; }
           if (v > maxV) { maxV = v; maxIdx = vi; }
@@ -340,7 +339,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             ctx.lineTo(x, y);
           }
           else ctx.lineTo(x, y);
-        }
+        });
         ctx.stroke();
         if (activeMode === "hybrid_line_points") {
           const markerStride = Math.max(stride, Math.floor((end - start) / Math.max(30, plotW / 10)));
@@ -404,10 +403,8 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         signalEntries.forEach((entry, si) => {
           const { signal, color, unit, isAvg } = entry;
           const [yMin, yMax] = yRanges[si]; const yR = yMax - yMin;
-          // Find first/last non-null value in view
-          let idx = -1;
-          if (isLeft) { for (let i = start; i < end; i++) { if (getPlotValue(entry, i) !== null) { idx = i; break; } } }
-          else { for (let i = end - 1; i >= start; i--) { if (getPlotValue(entry, i) !== null) { idx = i; break; } } }
+          const stats = rangeStatsByEntry[si];
+          const idx = isLeft ? (stats?.firstIdx ?? -1) : (stats?.lastIdx ?? -1);
           if (idx === -1) return;
           const plotV = getPlotValue(entry, idx);
           const rawV = signal.values[idx];
@@ -488,7 +485,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       drawEdge("right");
     }
     ctx.strokeStyle = t.border; ctx.lineWidth = 1; ctx.strokeRect(pad.left, pad.top, plotW, plotH);
-  }, [signalEntries, yRanges, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues, showExtrema, getPlotValue, referenceOverlays, unifyRange]);
+  }), [signalEntries, yRanges, rangeStatsByEntry, start, end, timestamps, showTimeAxis, compact, label, t, rebaseOffset, getGeo, groupColor, showEdgeValues, showExtrema, getPlotValue, referenceOverlays, unifyRange]);
 
   const drawCursors = useCallback(() => {
     const canvas = cursorRef.current; if (!canvas || !traceRef.current) return;
