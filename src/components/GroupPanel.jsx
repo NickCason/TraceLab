@@ -140,7 +140,8 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
               tagName={data.tagNames[i]}
               unit={(metadata[i] || {}).unit || ""}
               visible={visible[i]}
-              cursorValue={cursorValues?.[i]}
+              cursorValue={cursorValues?.[i]?.value ?? cursorValues?.[i]}
+              cursorValueIsInterpolated={cursorValues?.[i]?.isInterpolated ?? false}
               cursor2Value={cursor2Values?.[i]}
               deltaMode={deltaMode}
               isDigital={data.signals[i].isDigital}

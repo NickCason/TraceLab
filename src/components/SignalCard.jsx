@@ -5,7 +5,7 @@ import Sparkline from "./Sparkline";
 import MarqueeText from "./MarqueeText";
 import { clampSeamPercent, inferSeamDomain, seamOffsetToPercent, snapSeamPercent } from "../utils/seamAdjustment";
 
-export default function SignalCard({ index, signal, color, dash, strokeMode = "solid", thickness = 1.5, opacity = 0.92, displayName, tagName, unit, visible: vis, cursorValue, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, seamOffsetPct, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
+export default function SignalCard({ index, signal, color, dash, strokeMode = "solid", thickness = 1.5, opacity = 0.92, displayName, tagName, unit, visible: vis, cursorValue, cursorValueIsInterpolated, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, seamOffsetPct, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
   const t = THEMES[theme];
   const hasCustomName = displayName !== tagName;
   const [showStylePicker, setShowStylePicker] = useState(false);
@@ -104,8 +104,8 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
           </MarqueeText>
         )}
         {cursorValue !== undefined && cursorValue !== null && vis && (
-          <div style={{ fontSize: 13, color: color, marginTop: 1, fontFamily: FONT_MONO }}>
-            {cursorValue?.toFixed(3) ?? "—"}{unit ? ` ${unit}` : ""}
+          <div style={{ fontSize: 13, color: color, marginTop: 1, fontFamily: FONT_MONO, opacity: cursorValueIsInterpolated ? 0.6 : 1 }}>
+            {cursorValueIsInterpolated ? "~" : ""}{cursorValue?.toFixed(3) ?? "—"}{unit ? ` ${unit}` : ""}
           </div>
         )}
       </div>

@@ -548,11 +548,35 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       signalEntries.forEach((entry, si) => {
         const { signal, color: c2, unit, displayName, isAvg } = entry;
         const rawV = signal.values[idx];
-        const plotV = getPlotValue(entry, idx);
-        if (plotV === null || rawV === null) return;
+        let plotV = getPlotValue(entry, idx);
+        let isInterpolated = false;
+
+        if (plotV === null || rawV === null) {
+          // Null at this cursor position — scan for nearest upstream/downstream non-null
+          // and show an interpolated midpoint so the pill always appears.
+          let upV = null, downV = null;
+          const searchLimit = Math.min(200, end - start);
+          for (let j = idx - 1; j >= Math.max(start, idx - searchLimit); j--) {
+            const v = getPlotValue(entry, j); if (v !== null) { upV = v; break; }
+          }
+          for (let j = idx + 1; j < Math.min(end, idx + searchLimit); j++) {
+            const v = getPlotValue(entry, j); if (v !== null) { downV = v; break; }
+          }
+          if (upV !== null && downV !== null) { plotV = (upV + downV) / 2; isInterpolated = true; }
+          else if (upV !== null) { plotV = upV; isInterpolated = true; }
+          else if (downV !== null) { plotV = downV; isInterpolated = true; }
+          else return; // no data in view at all for this signal
+        }
+
         const [mn, mx] = yRanges[si]; const y = pad.top + plotH - ((plotV - mn) / (mx - mn)) * plotH;
-        // Dot — avg uses hollow diamond, original uses filled circle
-        if (isAvg) {
+
+        // Dot — hollow/dimmed for interpolated, diamond for avg, filled circle for real
+        if (isInterpolated) {
+          ctx.strokeStyle = c2; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.45;
+          ctx.setLineDash([2, 2]);
+          ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]); ctx.globalAlpha = 1;
+        } else if (isAvg) {
           ctx.strokeStyle = c2; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.8;
           ctx.beginPath();
           ctx.moveTo(x, y - 4); ctx.lineTo(x + 4, y); ctx.lineTo(x, y + 4); ctx.lineTo(x - 4, y); ctx.closePath();
@@ -563,7 +587,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         }
 
         if (showPills) {
-          pills.push({ v: rawV, y, color: c2, unit, displayName, isAvg: !!isAvg });
+          pills.push({ v: plotV, y, color: c2, unit, displayName, isAvg: !!isAvg, isInterpolated });
         }
       });
 
@@ -608,15 +632,17 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
 
         sorted.forEach((p) => {
           const prefix = p.isAvg ? "x̄ " : "";
-          const valStr = prefix + p.v.toFixed(3) + (p.unit ? " " + p.unit : "");
+          const suffix = p.isInterpolated ? "~" : "";
+          const valStr = prefix + p.v.toFixed(3) + (p.unit ? " " + p.unit : "") + (suffix ? " " + suffix : "");
           ctx.font = `bold 10px ${FONT_MONO}`;
           const tw = ctx.measureText(valStr).width;
           const pillW = tw + pillPad * 2 + (p.isAvg ? 4 : 10);
           const px = onRight ? x + 10 : x - pillW - 10;
           const py = p._py;
+          const pillAlpha = p.isInterpolated ? 0.72 : (p.isAvg ? 0.92 : 0.88);
 
           // Pill background
-          ctx.fillStyle = t.chart; ctx.globalAlpha = p.isAvg ? 0.92 : 0.88;
+          ctx.fillStyle = t.chart; ctx.globalAlpha = pillAlpha;
           ctx.beginPath();
           ctx.moveTo(px + 4, py); ctx.lineTo(px + pillW - 4, py);
           ctx.quadraticCurveTo(px + pillW, py, px + pillW, py + 4);
@@ -628,11 +654,13 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.quadraticCurveTo(px, py, px + 4, py);
           ctx.fill();
           // Leader line from dot to pill
-          ctx.strokeStyle = p.color; ctx.globalAlpha = 0.2; ctx.lineWidth = 1;
+          ctx.strokeStyle = p.color; ctx.globalAlpha = p.isInterpolated ? 0.12 : 0.2; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(onRight ? x + 4 : x - 4, p.y);
           ctx.lineTo(onRight ? px : px + pillW, py + pillH / 2); ctx.stroke();
-          // Pill border — dashed for avg, solid for original
-          ctx.strokeStyle = p.color; ctx.globalAlpha = p.isAvg ? 0.6 : 0.4; ctx.lineWidth = 1;
+          // Pill border — dashed for avg, solid for real/interpolated
+          ctx.strokeStyle = p.color;
+          ctx.globalAlpha = p.isInterpolated ? 0.35 : (p.isAvg ? 0.6 : 0.4);
+          ctx.lineWidth = 1;
           if (p.isAvg) ctx.setLineDash([3, 2]);
           ctx.beginPath();
           ctx.moveTo(px + 4, py); ctx.lineTo(px + pillW - 4, py);
@@ -646,7 +674,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.stroke();
           if (p.isAvg) ctx.setLineDash([]);
           ctx.globalAlpha = 1;
-          // Color pip — diamond for avg, circle for original
+          // Color pip — diamond for avg, circle for real/interpolated
           if (p.isAvg) {
             ctx.fillStyle = p.color; ctx.globalAlpha = 0.7;
             const cx = px + pillPad + 2, cy = py + pillH / 2;
@@ -657,8 +685,8 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             ctx.beginPath(); ctx.arc(px + pillPad + 2, py + pillH / 2, 2.5, 0, Math.PI * 2); ctx.fill();
           }
           // Value text
-          ctx.fillStyle = p.color; ctx.globalAlpha = p.isAvg ? 0.8 : 0.95;
-          ctx.fillText(valStr, px + pillPad + (p.isAvg ? 6 : 8), py + pillH / 2 + 0.5);
+          ctx.fillStyle = p.color; ctx.globalAlpha = p.isInterpolated ? 0.7 : (p.isAvg ? 0.8 : 0.95);
+          ctx.fillText(valStr, px + pillPad + (p.isAvg || p.isInterpolated ? 6 : 8), py + pillH / 2 + 0.5);
           ctx.globalAlpha = 1;
         });
         ctx.textBaseline = "alphabetic";

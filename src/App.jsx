@@ -478,7 +478,26 @@ export default function App() {
     setVisible(v => { const n = [...v]; members.forEach(i => { n[i] = !allVisible; }); return n; });
   }, [data, groups, visible]);
 
-  const cursorValues = useMemo(() => { if (!data || cursorIdx === null) return null; return data.signals.map(s => s.values[cursorIdx]); }, [data, cursorIdx]);
+  const cursorValues = useMemo(() => {
+    if (!data || cursorIdx === null) return null;
+    return data.signals.map(s => {
+      const raw = s.values[cursorIdx];
+      if (raw !== null && raw !== undefined) return { value: raw, isInterpolated: false };
+      // Null at cursor — find nearest upstream/downstream non-null and show midpoint
+      const limit = Math.min(200, data.timestamps.length);
+      let upV = null, downV = null;
+      for (let j = cursorIdx - 1; j >= Math.max(0, cursorIdx - limit); j--) {
+        const v = s.values[j]; if (v !== null && v !== undefined) { upV = v; break; }
+      }
+      for (let j = cursorIdx + 1; j < Math.min(data.timestamps.length, cursorIdx + limit); j++) {
+        const v = s.values[j]; if (v !== null && v !== undefined) { downV = v; break; }
+      }
+      if (upV !== null && downV !== null) return { value: (upV + downV) / 2, isInterpolated: true };
+      if (upV !== null) return { value: upV, isInterpolated: true };
+      if (downV !== null) return { value: downV, isInterpolated: true };
+      return null;
+    });
+  }, [data, cursorIdx]);
   const cursor2Values = useMemo(() => { if (!data || cursor2Idx === null) return null; return data.signals.map(s => s.values[cursor2Idx]); }, [data, cursor2Idx]);
 
   // Build chart panes from groups (1-8)
