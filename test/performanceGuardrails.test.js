@@ -66,9 +66,28 @@ test('regression guardrail: many visible signals over large window', () => {
 test('comparison-mode path reuses shared pane builder performance characteristics', () => {
   const primary = makeDataset(40, 10000);
   const comparison = makeDataset(40, 10000);
+  const primaryArgs = buildArgs(primary, 'group');
+  const comparisonArgs = buildArgs(comparison, 'cmp-group');
 
-  const p = timedBuild(buildArgs(primary, 'group'));
-  const c = timedBuild(buildArgs(comparison, 'cmp-group'));
+  // Warm both paths first so one-time JIT/cache setup does not bias only the first run.
+  timedBuild(primaryArgs);
+  timedBuild(comparisonArgs);
+
+  const runs = 6;
+  let primaryTotal = 0;
+  let comparisonTotal = 0;
+  for (let i = 0; i < runs; i++) {
+    if (i % 2 === 0) {
+      primaryTotal += timedBuild(primaryArgs).ms;
+      comparisonTotal += timedBuild(comparisonArgs).ms;
+    } else {
+      comparisonTotal += timedBuild(comparisonArgs).ms;
+      primaryTotal += timedBuild(primaryArgs).ms;
+    }
+  }
+
+  const p = { ms: primaryTotal / runs, panes: timedBuild(primaryArgs).panes };
+  const c = { ms: comparisonTotal / runs, panes: timedBuild(comparisonArgs).panes };
 
   assert.ok(p.panes.length > 0 && c.panes.length > 0);
   const slower = Math.max(p.ms, c.ms);
