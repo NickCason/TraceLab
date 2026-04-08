@@ -86,9 +86,8 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
           display: "flex", alignItems: "center", justifyContent: "center",
           color: vis ? color : t.text4,
           boxShadow: vis ? `0 0 4px ${color}33` : "none", transition: "all 0.15s",
-          border: `1px solid ${vis ? color + "55" : t.border}`,
         }} title="Signal settings">
-          <span style={{ fontSize: 10, lineHeight: "10px", fontWeight: 700 }}>⚙</span>
+          <span style={{ fontSize: 12, lineHeight: "12px", fontWeight: 700 }}>⚙</span>
         </div>
       </div>
       <div onClick={(e) => { e.stopPropagation(); onToggleVisible(index); }} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
@@ -105,7 +104,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
         )}
         {cursorValue !== undefined && cursorValue !== null && vis && (
           <div style={{ fontSize: 13, color: color, marginTop: 1, fontFamily: FONT_MONO, opacity: cursorValueIsInterpolated ? 0.6 : 1 }}>
-            {cursorValueIsInterpolated ? "~" : ""}{cursorValue?.toFixed(3) ?? "—"}{unit ? ` ${unit}` : ""}
+            {cursorValue?.toFixed(3) ?? "—"}{cursorValueIsInterpolated ? " ~" : ""}{unit ? ` ${unit}` : ""}
           </div>
         )}
       </div>
