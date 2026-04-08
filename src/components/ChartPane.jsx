@@ -292,12 +292,28 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       else if (activeMode === "dash_dot_dot") ctx.setLineDash([10, 4, 2, 3, 2, 4]);
       else ctx.setLineDash([]);
 
+      // Null-aware sample finder: within a look-ahead window starting at i,
+      // returns the first non-null {value, index} or null.
+      // lookAhead is at least 8 even when stride=1 so that interleaved-null
+      // merged datasets (every Nth index is null) still render connected lines.
+      // A gap of >lookAhead consecutive nulls correctly breaks the path.
+      const lookAhead = Math.max(stride, 8);
+      const findInWindow = (i) => {
+        const wEnd = Math.min(i + lookAhead, end);
+        for (let j = i; j < wEnd; j++) {
+          const cv = getPlotValue(entry, j);
+          if (cv !== null) return { v: cv, vi: j };
+        }
+        return null;
+      };
+
       if (activeMode === "samples") {
         for (let i = start; i < end; i += stride) {
-          const v = getPlotValue(entry, i); if (v === null) continue;
-          if (v < minV) { minV = v; minIdx = i; }
-          if (v > maxV) { maxV = v; maxIdx = i; }
-          const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
+          const found = findInWindow(i); if (!found) continue;
+          const { v, vi } = found;
+          if (v < minV) { minV = v; minIdx = vi; }
+          if (v > maxV) { maxV = v; maxIdx = vi; }
+          const x = pad.left + ((vi - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
           ctx.beginPath();
           ctx.arc(x, y, Math.max(1.4, strokePx * 0.95), 0, Math.PI * 2);
           ctx.fillStyle = color;
@@ -307,12 +323,22 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       } else {
         ctx.beginPath(); let started = false;
         for (let i = start; i < end; i += stride) {
-          const v = getPlotValue(entry, i); if (v === null) { started = false; continue; }
-          if (v < minV) { minV = v; minIdx = i; }
-          if (v > maxV) { maxV = v; maxIdx = i; }
-          const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
+          const found = findInWindow(i);
+          if (!found) { started = false; continue; }
+          const { v, vi } = found;
+          if (v < minV) { minV = v; minIdx = vi; }
+          if (v > maxV) { maxV = v; maxIdx = vi; }
+          const x = pad.left + ((vi - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
           if (!started) { ctx.moveTo(x, y); started = true; }
-          else if (signal.isDigital && i > start) { const pi2 = Math.max(start, i - stride); const pv = getPlotValue(entry, pi2); if (pv !== null) ctx.lineTo(x, pad.top + plotH - ((pv - yMin) / yR) * plotH); ctx.lineTo(x, y); }
+          else if (signal.isDigital && vi > start) {
+            // For digital step rendering, find the previous non-null value
+            let pv = null;
+            for (let j = vi - 1; j >= Math.max(start, vi - lookAhead); j--) {
+              const cv = getPlotValue(entry, j); if (cv !== null) { pv = cv; break; }
+            }
+            if (pv !== null) ctx.lineTo(x, pad.top + plotH - ((pv - yMin) / yR) * plotH);
+            ctx.lineTo(x, y);
+          }
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
@@ -321,8 +347,9 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.fillStyle = color;
           ctx.globalAlpha = Math.min(1, strokeAlpha + 0.05);
           for (let i = start; i < end; i += markerStride) {
-            const v = getPlotValue(entry, i); if (v === null) continue;
-            const x = pad.left + ((i - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
+            const found = findInWindow(i); if (!found) continue;
+            const { v, vi } = found;
+            const x = pad.left + ((vi - start) / sc) * plotW, y = pad.top + plotH - ((v - yMin) / yR) * plotH;
             ctx.beginPath();
             ctx.arc(x, y, Math.max(1.6, strokePx * 0.9), 0, Math.PI * 2);
             ctx.fill();

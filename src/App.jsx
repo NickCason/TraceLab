@@ -17,6 +17,8 @@ import { downloadBlob } from "./utils/download";
 import { ensureFonts } from "./utils/fonts";
 import { buildEquationEvaluator } from "./utils/derivedEquation";
 import { clampSeamPercent, hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./utils/seamAdjustment";
+import { computeAlignmentInfo } from "./utils/mergeDatasets";
+import ImportDialog from "./components/ImportDialog";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
 
@@ -121,12 +123,25 @@ export default function App() {
   const [rebaseOffset, setRebaseOffset] = useState(0);
   const [rebaseInput, setRebaseInput] = useState("");
   const [toast, setToast] = useState(null);
+  // Multi-CSV import state
+  const [importMode, setImportMode] = useState(null);           // null | "unified" | "comparison"
+  const [comparisonData, setComparisonData] = useState(null);   // second dataset for comparison mode
+  const [comparisonState, setComparisonState] = useState(null); // independent state bundle for comparison chart
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [activeSidebarDataset, setActiveSidebarDataset] = useState("primary");
   const fileInputRef = useRef(null);
   const projectInputRef = useRef(null);
 
   const t = THEMES[theme];
   const gc = theme === "dark" ? GROUP_COLORS_DARK : GROUP_COLORS_LIGHT;
   const showToast = useCallback((msg, type = "info") => setToast({ msg, type }), []);
+
+  const updateComparisonState = useCallback((key, updater) => {
+    setComparisonState(prev => ({
+      ...prev,
+      [key]: typeof updater === "function" ? updater(prev[key]) : updater,
+    }));
+  }, []);
 
   const recomputeDerivedSignals = useCallback((sourceData, cfgMap) => {
     if (!sourceData) return sourceData;
@@ -327,12 +342,52 @@ export default function App() {
         setViewRange([0, parsed.timestamps.length]);
         setCursorIdx(null); setCursor2Idx(null);
         setMetadata({}); setSignalStyles({}); setReferenceOverlays({}); setDerivedConfigs({}); setRebaseOffset(0); setRebaseInput("");
+        setImportMode(null); setComparisonData(null); setComparisonState(null); setActiveSidebarDataset("primary");
         showToast(`Loaded ${parsed.tagNames.length} tags, ${parsed.timestamps.length.toLocaleString()} samples`, "success");
       } else showToast("Failed to parse CSV — unsupported format", "error");
     };
     reader.readAsText(file);
   }, [showToast]);
 
+
+  const handleUnifiedImport = useCallback((mergedData, newSignalStartIdx) => {
+    setData(mergedData);
+    setVisible(prev => {
+      const extended = [...prev];
+      for (let i = extended.length; i < mergedData.signals.length; i++) extended.push(true);
+      return extended;
+    });
+    setGroups(prev => {
+      const extended = [...prev];
+      for (let i = extended.length; i < mergedData.signals.length; i++) extended.push((i % MAX_GROUPS) + 1);
+      return extended;
+    });
+    setViewRange([0, mergedData.timestamps.length]);
+    setImportMode("unified");
+    setImportDialogOpen(false);
+    if (mergedData.sampleRateWarning) {
+      showToast(`Imported ${mergedData.signals.length - newSignalStartIdx} signals — sample rates differ, time spacing may be non-uniform`, "warn");
+    } else {
+      showToast(`Imported ${mergedData.signals.length - newSignalStartIdx} new signals (${mergedData.signals.length} total)`, "success");
+    }
+  }, [showToast]);
+
+  const handleComparisonImport = useCallback((newData) => {
+    setComparisonData(newData);
+    setComparisonState({
+      visible: newData.signals.map(() => true),
+      groups: newData.signals.map((_, i) => (i % MAX_GROUPS) + 1),
+      groupNames: {}, signalStyles: {}, metadata: {},
+      referenceOverlays: {}, derivedConfigs: {},
+      viewRange: [0, newData.timestamps.length],
+      rebaseOffset: 0, cursorIdx: null, cursor2Idx: null,
+      splitRanges: {}, avgWindow: {}, hideOriginal: {},
+    });
+    setImportMode("comparison");
+    setImportDialogOpen(false);
+    setActiveSidebarDataset("primary");
+    showToast(`Comparison mode: ${newData.tagNames.length} tags loaded`, "success");
+  }, [showToast]);
 
   const handleDrop = useCallback((e) => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) { if (f.name.endsWith(".tracelab")) loadProject(f); else handleFile(f); } }, [handleFile]);
 
@@ -505,6 +560,66 @@ export default function App() {
     return panes;
   }, [data, visible, groups, metadata, groupNames, signalStyles, t.sigColors, avgWindow, hideOriginal, theme]);
 
+  // Build chart panes for the comparison dataset (mirrors chartPanes logic)
+  const comparisonChartPanes = useMemo(() => {
+    if (!comparisonData || !comparisonState) return [];
+    const { visible: cVis, groups: cGroups, signalStyles: cStyles, metadata: cMeta, avgWindow: cAvg, hideOriginal: cHide, groupNames: cGroupNames } = comparisonState;
+    const sc = t.sigColors;
+    const paneMap = new Map();
+    const getCompDisplayName = (i) => cMeta?.[i]?.displayName || comparisonData.tagNames[i] || `Signal ${i}`;
+    const getCompGroupLabel = (g) => cGroupNames?.[g] || `Group ${GROUP_LABELS[g - 1]}`;
+
+    comparisonData.signals.forEach((signal, i) => {
+      if (!cVis?.[i]) return;
+      const g = cGroups?.[i] || 1;
+      if (!paneMap.has(g)) paneMap.set(g, []);
+      const baseColor = cStyles?.[i]?.color || getAutoSignalColor(theme, i) || sc[i % sc.length];
+      const baseDash = cStyles?.[i]?.dash || "solid";
+      const baseStrokeMode = cStyles?.[i]?.strokeMode || baseDash || "solid";
+      const baseThickness = Math.max(0.6, Number(cStyles?.[i]?.thickness) || (signal.isDigital ? 2 : 1.5));
+      const baseOpacity = Math.max(0.1, Math.min(1, Number(cStyles?.[i]?.opacity) || 0.92));
+
+      if (!cHide?.[i]) {
+        paneMap.get(g).push({
+          signal, originalIndex: i, displayName: getCompDisplayName(i),
+          unit: cMeta?.[i]?.unit || "",
+          color: baseColor, dash: baseDash, strokeMode: baseStrokeMode,
+          thickness: baseThickness, opacity: baseOpacity, seam: null, isAvg: !!signal.isDerived,
+        });
+      }
+
+      const win = cAvg?.[i] || 0;
+      if (win > 0) {
+        const vals = signal.values;
+        const avgVals = new Array(vals.length);
+        const buf = []; let bufSum = 0;
+        for (let j = 0; j < vals.length; j++) {
+          if (vals[j] !== null) {
+            buf.push(vals[j]); bufSum += vals[j];
+            if (buf.length > win) bufSum -= buf.shift();
+            avgVals[j] = bufSum / buf.length;
+          } else { avgVals[j] = buf.length > 0 ? bufSum / buf.length : null; }
+        }
+        paneMap.get(g).push({
+          signal: { values: avgVals, isDigital: false }, originalIndex: i,
+          displayName: `${getCompDisplayName(i)} (avg ${win})`, unit: cMeta?.[i]?.unit || "",
+          color: baseColor, dash: "dashed", strokeMode: "dashed",
+          thickness: Math.max(0.6, baseThickness * 0.9), opacity: Math.max(0.2, baseOpacity - 0.1),
+          seam: null, isAvg: true, parentIndex: i,
+        });
+      }
+    });
+
+    const panes = [];
+    const sortedKeys = [...paneMap.keys()].sort((a, b) => a - b);
+    for (const g of sortedKeys) {
+      const entries = paneMap.get(g);
+      if (!entries.length) continue;
+      panes.push({ id: `cmp-group-${g}`, entries, label: getCompGroupLabel(g), groupIdx: g });
+    }
+    return panes;
+  }, [comparisonData, comparisonState, t.sigColors, theme]);
+
   // Compute a global max edge label width across ALL panes so x-axes align
   const globalEdgeLabelWidth = useMemo(() => {
     if (!showEdgeValues || !data) return 0;
@@ -551,7 +666,7 @@ export default function App() {
 
   const saveProject = useCallback(() => {
     if (!data) return;
-    const project = { version: 5, data, visible, groups, groupNames, signalStyles, metadata, referenceOverlays, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs };
+    const project = { version: 6, data, visible, groups, groupNames, signalStyles, metadata, referenceOverlays, viewRange, rebaseOffset, deltaMode, showPills, showEdgeValues, splitRanges, avgWindow, hideOriginal, derivedConfigs, importMode, comparisonData: importMode === "comparison" ? comparisonData : undefined, comparisonState: importMode === "comparison" ? comparisonState : undefined };
     const blob = new Blob([JSON.stringify(project)], { type: "application/json" });
     const filename = `${(data.meta.trendName || "project").replace(/\s+/g, "_")}.tracelab`;
     downloadBlob(blob, filename, () => showToast("Project saved", "success"));
@@ -592,6 +707,17 @@ export default function App() {
           if (proj.avgWindow) setAvgWindow(proj.avgWindow); else if (proj.showAvg) { const aw = {}; Object.keys(proj.showAvg).forEach(k => { if (proj.showAvg[k]) aw[k] = 20; }); setAvgWindow(aw); } else setAvgWindow({});
           if (proj.hideOriginal) setHideOriginal(proj.hideOriginal); else setHideOriginal({});
           setCursorIdx(null); setCursor2Idx(null);
+          // v6: restore multi-CSV import state
+          if (proj.importMode === "comparison" && proj.comparisonData) {
+            setImportMode("comparison");
+            setComparisonData(proj.comparisonData);
+            setComparisonState(proj.comparisonState);
+            setActiveSidebarDataset("primary");
+          } else {
+            setImportMode(proj.importMode || null);
+            setComparisonData(null);
+            setComparisonState(null);
+          }
           showToast("Project loaded", "success");
         } else showToast("Invalid project file", "error");
       } catch { showToast("Failed to parse project file", "error"); }
@@ -708,6 +834,11 @@ export default function App() {
           <div style={{ fontSize: 13, color: t.text2, fontFamily: FONT_DISPLAY, fontWeight: 500 }}>{data.meta.trendName || "Untitled"}</div>
           <div style={{ fontSize: 12, color: t.text3, fontFamily: FONT_MONO }}>{data.signals.length} tags · {data.timestamps.length.toLocaleString()} samples · {data.meta.samplePeriod}{data.meta.sampleUnit}</div>
           {rebaseOffset !== 0 && <div style={{ fontSize: 12, color: t.warn, fontWeight: 700, letterSpacing: 1, padding: "2px 8px", borderRadius: 6, background: `${t.warn}18`, border: `1px solid ${t.warn}33`, fontFamily: FONT_DISPLAY }}>REBASED</div>}
+          {importMode === "unified" && <div style={{ fontSize: 12, color: t.green, fontWeight: 700, letterSpacing: 1, padding: "2px 8px", borderRadius: 6, background: `${t.green}18`, border: `1px solid ${t.green}33`, fontFamily: FONT_DISPLAY }}>UNIFIED · {data?.signals.length} tags</div>}
+          {importMode === "comparison" && <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.green, fontWeight: 700, letterSpacing: 1, padding: "2px 8px", borderRadius: 6, background: `${t.green}18`, border: `1px solid ${t.green}33`, fontFamily: FONT_DISPLAY }}>
+            COMPARISON
+            <span onClick={() => { setImportMode(null); setComparisonData(null); setComparisonState(null); }} title="Exit comparison mode" style={{ cursor: "pointer", opacity: 0.7, fontSize: 13, lineHeight: 1 }}>✕</span>
+          </div>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <ThemeToggle theme={theme} setTheme={setTheme} />
@@ -724,17 +855,45 @@ export default function App() {
           <input ref={projectInputRef} type="file" accept=".tracelab" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) loadProject(e.target.files[0]); }} />
           <ToolBtn onClick={() => fileInputRef.current?.click()} t={t} style={{ background: t.accentDim, borderColor: `${t.accent}33`, color: t.accent }}>Load CSV</ToolBtn>
           <input ref={fileInputRef} type="file" accept=".csv,.CSV,.tracelab" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) { f.name.endsWith(".tracelab") ? loadProject(f) : handleFile(f); } }} />
+          {data && <ToolBtn onClick={() => setImportDialogOpen(true)} t={t} style={{ background: t.green + "18", borderColor: t.green + "33", color: t.green }}>+ CSV</ToolBtn>}
         </div>
       </div>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         <div style={{ width: 280, flexShrink: 0, background: t.panel, borderRight: `1px solid ${t.border}`, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: t.panelShadow }}>
+          {importMode === "comparison" && (
+            <div style={{ display: "flex", borderBottom: `1px solid ${t.border}` }}>
+              <button onClick={() => setActiveSidebarDataset("primary")} style={tabSt(activeSidebarDataset === "primary", t.accent)}>Original</button>
+              <button onClick={() => setActiveSidebarDataset("comparison")} style={tabSt(activeSidebarDataset === "comparison", t.green)}>Comparison</button>
+            </div>
+          )}
           <div style={{ display: "flex", borderBottom: `1px solid ${t.border}` }}>
             {["signals", "stats", "meta", "rebase", "export"].map(tab => <button key={tab} onClick={() => setActivePanel(tab)} style={tabSt(activePanel === tab, tab === "export" ? t.green : tab === "rebase" ? t.warn : null)}>{tab}</button>)}
           </div>
           <div style={{ flex: 1, overflow: "auto", padding: 10 }}>
+            {/* ── Signals Tab — comparison mode: show comparison dataset signals ── */}
+            {activePanel === "signals" && importMode === "comparison" && activeSidebarDataset === "comparison" && comparisonData && comparisonState && (
+              <div>
+                <div style={{ fontSize: 11, color: t.green, fontFamily: FONT_DISPLAY, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+                  {comparisonData.meta?.trendName || "Comparison Dataset"} · {comparisonData.signals.length} tags
+                </div>
+                {comparisonData.signals.map((sig, i) => {
+                  const isVis = comparisonState.visible?.[i] ?? true;
+                  const displayName = comparisonState.metadata?.[i]?.displayName || comparisonData.tagNames[i] || `Signal ${i}`;
+                  const color = comparisonState.signalStyles?.[i]?.color || getAutoSignalColor(theme, i) || t.sigColors[i % t.sigColors.length];
+                  return (
+                    <div key={i} onClick={() => updateComparisonState("visible", prev => { const n = [...(prev || [])]; n[i] = !n[i]; return n; })}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 6, cursor: "pointer", opacity: isVis ? 1 : 0.45, marginBottom: 2, background: isVis ? color + "10" : "transparent" }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: t.text1, fontFamily: FONT_MONO, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</span>
+                      {sig.isDigital && <span style={{ fontSize: 9, color: t.text4, fontFamily: FONT_DISPLAY, marginLeft: "auto" }}>DIG</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {/* ── Signals Tab — drag-and-drop group panels ── */}
-            {activePanel === "signals" && (
+            {activePanel === "signals" && !(importMode === "comparison" && activeSidebarDataset === "comparison") && (
               <div>
                 {Array.from({ length: MAX_GROUPS }, (_, i) => {
                   const g = i + 1; // groups are 1-8
@@ -887,6 +1046,12 @@ export default function App() {
             </span>}
             <span style={{ marginLeft: "auto", color: t.text4, fontSize: 13, fontFamily: FONT_DISPLAY }}>{deltaMode ? "click: place cursors · scroll: zoom" : "drag: pan · scroll: zoom"}</span>
           </div>
+          {/* In comparison mode, show a label strip above the primary panes */}
+          {importMode === "comparison" && comparisonData && (
+            <div style={{ height: 20, display: "flex", alignItems: "center", padding: "0 10px", background: t.accent + "18", borderBottom: `1px solid ${t.accent}33`, flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: t.accent, fontFamily: FONT_DISPLAY, letterSpacing: 0.5 }}>Original: {data.meta?.trendName || "Dataset 1"}</span>
+            </div>
+          )}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {chartPanes.map((pane, pi) => {
               const paneGc = gc[pane.groupIdx - 1] || gc[0];
@@ -985,6 +1150,80 @@ export default function App() {
             })}
             {chartPanes.length === 0 && <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: t.text4, fontSize: 13, fontFamily: FONT_DISPLAY }}>No visible signals</div>}
           </div>
+
+          {/* Comparison mode: second chart section */}
+          {importMode === "comparison" && comparisonData && comparisonState && (
+            <>
+              <div style={{ height: 2, background: t.green + "55", flexShrink: 0 }} />
+              <div style={{ height: 20, display: "flex", alignItems: "center", padding: "0 10px", background: t.green + "14", borderBottom: `1px solid ${t.green}33`, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: t.green, fontFamily: FONT_DISPLAY, letterSpacing: 0.5 }}>Comparison: {comparisonData.meta?.trendName || "Dataset 2"}</span>
+                <span style={{ fontSize: 11, color: t.text4, fontFamily: FONT_MONO, marginLeft: 8 }}>{comparisonData.signals.length} tags · {comparisonData.timestamps.length.toLocaleString()} samples</span>
+              </div>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {comparisonChartPanes.map((pane, pi) => {
+                  const paneGc = gc[pane.groupIdx - 1] || gc[0];
+                  return (
+                    <div key={pane.id} style={{ flex: 1, minHeight: 48, position: "relative", display: "flex", flexDirection: "column", borderBottom: pi === comparisonChartPanes.length - 1 ? "none" : `1px solid ${t.border}` }}>
+                      {paneGc && (
+                        <div style={{ height: 22, display: "flex", alignItems: "center", gap: 6, padding: "0 10px", background: paneGc + "12", borderBottom: `1px solid ${paneGc}22`, flexShrink: 0, overflow: "visible" }}>
+                          <div style={{ width: 5, height: 5, borderRadius: 2, background: paneGc, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: paneGc, fontFamily: FONT_DISPLAY, flexShrink: 0 }}>{pane.label}</span>
+                          <span style={{ fontSize: 12, color: t.text4, fontFamily: FONT_MONO, flexShrink: 0 }}>{pane.entries.length} tag{pane.entries.length !== 1 ? "s" : ""}</span>
+                          <span style={{ width: 1, height: 8, background: t.border, flexShrink: 0, marginLeft: 2, marginRight: 2 }} />
+                          {pane.entries.map((entry, ei) => (
+                            <span key={ei} style={{ display: "inline-flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
+                              <span style={{ width: 5, height: 5, borderRadius: "50%", background: entry.color, flexShrink: 0 }} />
+                              <span style={{ fontSize: 12, fontWeight: 600, color: entry.color, fontFamily: FONT_MONO, whiteSpace: "nowrap" }}>{entry.displayName}{entry.unit && <span style={{ fontWeight: 400, opacity: 0.6 }}> [{entry.unit}]</span>}</span>
+                            </span>
+                          ))}
+                          {pane.entries.length > 1 && (
+                            <span
+                              onClick={() => updateComparisonState("splitRanges", prev => ({ ...prev, [pane.groupIdx]: !prev?.[pane.groupIdx] }))}
+                              title={comparisonState.splitRanges?.[pane.groupIdx] ? "Unify Y-axis" : "Split Y-axes"}
+                              style={{ marginLeft: "auto", flexShrink: 0, cursor: "pointer", fontSize: 13, fontWeight: 700, letterSpacing: 0.5, padding: "1px 5px", borderRadius: 3, fontFamily: FONT_DISPLAY, background: !comparisonState.splitRanges?.[pane.groupIdx] ? t.accent + "22" : "transparent", border: `1px solid ${!comparisonState.splitRanges?.[pane.groupIdx] ? t.accent + "44" : t.border}`, color: !comparisonState.splitRanges?.[pane.groupIdx] ? t.accent : t.text4, transition: "all 0.15s" }}
+                            >
+                              {comparisonState.splitRanges?.[pane.groupIdx] ? "Y ≠" : "Y ="}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div style={{ flex: 1, position: "relative" }}>
+                        <ChartPane
+                          timestamps={comparisonData.timestamps}
+                          signalEntries={pane.entries}
+                          cursorIdx={comparisonState.cursorIdx}
+                          setCursorIdx={(idx) => updateComparisonState("cursorIdx", idx)}
+                          cursor2Idx={comparisonState.cursor2Idx}
+                          setCursor2Idx={(idx) => updateComparisonState("cursor2Idx", idx)}
+                          deltaMode={deltaMode}
+                          viewRange={comparisonState.viewRange}
+                          setViewRange={(vr) => updateComparisonState("viewRange", vr)}
+                          showTimeAxis={pi === comparisonChartPanes.length - 1}
+                          label={paneGc ? null : pane.label}
+                          compact={comparisonChartPanes.length > 2}
+                          theme={theme}
+                          rebaseOffset={comparisonState.rebaseOffset || 0}
+                          groupColor={paneGc}
+                          showPills={showPills}
+                          showEdgeValues={showEdgeValues}
+                          unifyRange={!comparisonState.splitRanges?.[pane.groupIdx]}
+                          referenceOverlays={comparisonState.referenceOverlays?.[pane.groupIdx] || []}
+                          onOverlayChange={() => {}}
+                          deltaLocked={false}
+                          setDeltaLocked={() => {}}
+                          globalEdgeLabelWidth={0}
+                          globalLeftEdgeLabelWidth={0}
+                          showExtrema={showExtrema}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                {comparisonChartPanes.length === 0 && <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: t.text4, fontSize: 13, fontFamily: FONT_DISPLAY }}>No visible signals</div>}
+              </div>
+            </>
+          )}
+
           <div style={{ height: 26, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", background: t.panel, borderTop: `1px solid ${t.borderSubtle}`, fontSize: 13, color: t.text4, flexShrink: 0, fontFamily: FONT_MONO }}>
             <span>{fmtDate(data.timestamps[0] + rebaseOffset)} {fmtTime(data.timestamps[viewRange[0]] + rebaseOffset)}</span>
             <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 500 }}>Viewing {(viewRange[1] - viewRange[0]).toLocaleString()} / {data.timestamps.length.toLocaleString()} ({((viewRange[1] - viewRange[0]) / data.timestamps.length * 100).toFixed(1)}%)</span>
@@ -1011,6 +1250,15 @@ export default function App() {
         }}
       />
       {toast && <Toast message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      {data && <ImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        existingData={data}
+        theme={theme}
+        t={t}
+        onImportUnified={handleUnifiedImport}
+        onImportComparison={handleComparisonImport}
+      />}
     </div>
   );
 }
