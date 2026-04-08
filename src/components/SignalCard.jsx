@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
-import { SIGNAL_SWATCHES } from "../constants/colors";
+import { EXTENDED_COLOR_SWATCHES } from "../constants/colors";
 import Sparkline from "./Sparkline";
 import MarqueeText from "./MarqueeText";
+import ColorPicker from "./ColorPicker";
 import { clampSeamPercent, inferSeamDomain, seamOffsetToPercent, snapSeamPercent } from "../utils/seamAdjustment";
 
 export default function SignalCard({ index, signal, color, dash, strokeMode = "solid", thickness = 1.5, opacity = 0.92, displayName, tagName, unit, visible: vis, cursorValue, cursorValueIsInterpolated, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, seamOffsetPct, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
@@ -44,7 +45,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
     { value: "samples", label: "• • •", desc: "Samples Only" },
     { value: "hybrid_line_points", label: "— • —", desc: "Line + Points" },
   ];
-  const PALETTE = SIGNAL_SWATCHES;
+  const PALETTE = EXTENDED_COLOR_SWATCHES;
   const seamDomain = inferSeamDomain(signal.values);
   const effectiveSeamPct = seamOffsetPct !== undefined ? clampSeamPercent(seamOffsetPct) : seamOffsetToPercent(seamOffset, seamDomain.span);
 
@@ -130,14 +131,27 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
           padding: 8, boxShadow: t.cardShadow, minWidth: 150,
         }}>
           <div style={{ fontSize: 12, color: t.text3, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, fontFamily: FONT_DISPLAY }}>Color</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 8 }}>
-            {PALETTE.map(c => (
-              <div key={c} onClick={() => { onStyleChange(index, { color: c }); }} style={{
-                width: 15, height: 15, borderRadius: 4, background: c, cursor: "pointer",
-                border: c === color ? `2px solid ${t.text1}` : `1px solid ${t.border}`,
-                boxShadow: c === color ? `0 0 6px ${c}66` : "none",
-              }} />
-            ))}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <ColorPicker
+              value={color}
+              fallbackColor={PALETTE[index % PALETTE.length]}
+              swatches={PALETTE}
+              onChange={(nextColor) => onStyleChange(index, { color: nextColor })}
+              t={t}
+              title="Choose signal color"
+              width={24}
+              height={20}
+              panelWidth={170}
+              placementMode="bottom-right"
+            />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 3, flex: 1 }}>
+              {PALETTE.slice(0, 12).map(c => (
+                <div key={c} onClick={() => { onStyleChange(index, { color: c }); }} style={{
+                  width: 12, height: 12, borderRadius: 3, background: c, cursor: "pointer",
+                  border: c === color ? `1.5px solid ${t.text1}` : `1px solid ${t.border}`,
+                }} />
+              ))}
+            </div>
           </div>
           <div style={{ fontSize: 12, color: t.text3, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4, fontFamily: FONT_DISPLAY }}>Line Style</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 3 }}>

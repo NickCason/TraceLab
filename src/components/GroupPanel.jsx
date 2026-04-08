@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 import { GROUP_LABELS } from "../constants/groups";
-import { getAutoSignalColor } from "../constants/colors";
+import { EXTENDED_COLOR_SWATCHES, getAutoSignalColor } from "../constants/colors";
 import SignalCard from "./SignalCard";
+import ColorPicker from "./ColorPicker";
 
 export default function GroupPanel({ groupIdx, label, color, signals, sigColors, visible, groups, cursorValues, cursor2Values, deltaMode, metadata, data, onDrop, onToggleVisible, onToggleGroup, onSetGroupName, onStyleChange, signalStyles, referenceOverlays = [], derivedConfigs, onEditDerived, onDeleteDerived, onAddOverlay, onUpdateOverlay, onDeleteOverlay, theme, getDisplayName }) {
   const t = THEMES[theme];
@@ -177,7 +178,15 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
                   <option value="y">Horizontal (Y)</option>
                   <option value="x">Vertical (Sample)</option>
                 </select>
-                <input type="color" value={ov.color || color} onChange={(e) => onUpdateOverlay?.(groupIdx, ov.id, { color: e.target.value })} style={{ width: "100%", height: 22, border: `1px solid ${t.inputBorder}`, borderRadius: 5, background: "transparent" }} />
+                <ColorPicker
+                  value={ov.color}
+                  fallbackColor={color}
+                  swatches={EXTENDED_COLOR_SWATCHES}
+                  onChange={(nextColor) => onUpdateOverlay?.(groupIdx, ov.id, { color: nextColor })}
+                  t={t}
+                  title="Choose overlay color"
+                  panelWidth={188}
+                />
               </div>
               {ov.type === "band" ? (
                 <>
