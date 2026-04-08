@@ -154,36 +154,15 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       return fallback;
     };
     const overlayYRange = unifyRange && yRanges.length ? yRanges[0] : null;
+    const overlayLabelQueue = [];
+    const overlayHandleQueue = [];
     if (referenceOverlays?.length) {
-      const placedOverlayLabels = [];
-      const intersectsLabel = (a, b) => !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
-      const drawOverlayLabel = (text, prefX, prefY, color) => {
+      const queueOverlayLabel = (text, prefX, prefY, color) => {
         if (!text) return;
-        ctx.font = `bold 10px ${FONT_DISPLAY}`;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        const tw = ctx.measureText(text).width;
-        const w = tw + 6;
-        const h = 12;
-        let x = Math.max(pad.left + 2, Math.min(pad.left + plotW - w - 2, prefX));
-        let y = Math.max(pad.top + 7, Math.min(pad.top + plotH - 7, prefY));
-        for (let i = 0; i < 8; i++) {
-          const box = { x, y: y - h / 2, w, h };
-          if (!placedOverlayLabels.some((p) => intersectsLabel(box, p))) {
-            placedOverlayLabels.push(box);
-            break;
-          }
-          y = Math.min(pad.top + plotH - 7, y + h + 2);
-        }
-        ctx.fillStyle = color || t.warn;
-        ctx.fillText(text, x + 3, y);
-        ctx.textBaseline = "alphabetic";
+        overlayLabelQueue.push({ text, prefX, prefY, color });
       };
-      const drawOverlayHandle = (hx, hy, color) => {
-        ctx.fillStyle = t.chart; ctx.globalAlpha = 0.95;
-        ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = color || t.warn; ctx.globalAlpha = 0.95; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.stroke();
+      const queueOverlayHandle = (hx, hy, color) => {
+        overlayHandleQueue.push({ hx, hy, color });
       };
       referenceOverlays.forEach((ov) => {
         if (!ov || ov.visible === false) return;
@@ -205,10 +184,10 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             ctx.fillRect(drawX, pad.top, drawW, plotH);
             if (ov.label) {
               ctx.globalAlpha = 0.9;
-              drawOverlayLabel(ov.label, Math.max(pad.left + 6, drawX + 8), pad.top + 16, ov.color || t.warn);
+              queueOverlayLabel(ov.label, Math.max(pad.left + 6, drawX + 8), pad.top + 16, ov.color || t.warn);
             }
-            drawOverlayHandle(drawX, pad.top + 4, ov.color || t.warn);
-            drawOverlayHandle(drawX + drawW, pad.top + 4, ov.color || t.warn);
+            queueOverlayHandle(drawX, pad.top + 4, ov.color || t.warn);
+            queueOverlayHandle(drawX + drawW, pad.top + 4, ov.color || t.warn);
           } else {
             const s = Number(ov.sample);
             if (!Number.isFinite(s) || sc <= 0) return;
@@ -224,9 +203,9 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             ctx.stroke();
             ctx.setLineDash([]);
             if (ov.label) {
-              drawOverlayLabel(ov.label, Math.max(pad.left + 6, x + 8), pad.top + 16, ov.color || t.warn);
+              queueOverlayLabel(ov.label, Math.max(pad.left + 6, x + 8), pad.top + 16, ov.color || t.warn);
             }
-            drawOverlayHandle(x, pad.top + 4, ov.color || t.warn);
+            queueOverlayHandle(x, pad.top + 4, ov.color || t.warn);
           }
           ctx.globalAlpha = 1;
           return;
@@ -243,10 +222,10 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.fillRect(pad.left, Math.max(pad.top, y1), plotW, Math.min(plotH, y2 - y1));
           if (ov.label) {
             ctx.globalAlpha = 0.9;
-            drawOverlayLabel(ov.label, pad.left + 8, Math.max(pad.top + 14, y1 + 14), ov.color || t.warn);
+            queueOverlayLabel(ov.label, pad.left + 8, Math.max(pad.top + 14, y1 + 14), ov.color || t.warn);
           }
-          drawOverlayHandle(pad.left + plotW - 4, y1, ov.color || t.warn);
-          drawOverlayHandle(pad.left + plotW - 4, y2, ov.color || t.warn);
+          queueOverlayHandle(pad.left + plotW - 4, y1, ov.color || t.warn);
+          queueOverlayHandle(pad.left + plotW - 4, y2, ov.color || t.warn);
         } else if (ov.type === "line") {
           const val = Number(ov.value);
           if (!Number.isFinite(val)) return;
@@ -261,9 +240,9 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
           ctx.stroke();
           ctx.setLineDash([]);
           if (ov.label) {
-            drawOverlayLabel(ov.label, pad.left + 8, Math.max(pad.top + 14, y - 8), ov.color || t.warn);
+            queueOverlayLabel(ov.label, pad.left + 8, Math.max(pad.top + 14, y - 8), ov.color || t.warn);
           }
-          drawOverlayHandle(pad.left + plotW - 4, y, ov.color || t.warn);
+          queueOverlayHandle(pad.left + plotW - 4, y, ov.color || t.warn);
         }
         ctx.globalAlpha = 1;
       });
@@ -401,9 +380,47 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         }
       }
     });
+    if (overlayLabelQueue.length) {
+      const placedOverlayLabels = [];
+      const intersectsLabel = (a, b) => !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
+      overlayLabelQueue.forEach(({ text, prefX, prefY, color }) => {
+        ctx.font = `bold 10px ${FONT_DISPLAY}`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        const tw = ctx.measureText(text).width;
+        const w = tw + 6;
+        const h = 12;
+        let x = Math.max(pad.left + 2, Math.min(pad.left + plotW - w - 2, prefX));
+        let y = Math.max(pad.top + 7, Math.min(pad.top + plotH - 7, prefY));
+        for (let i = 0; i < 8; i++) {
+          const box = { x, y: y - h / 2, w, h };
+          if (!placedOverlayLabels.some((p) => intersectsLabel(box, p))) {
+            placedOverlayLabels.push(box);
+            break;
+          }
+          y = Math.min(pad.top + plotH - 7, y + h + 2);
+        }
+        ctx.fillStyle = color || t.warn;
+        ctx.globalAlpha = 0.95;
+        ctx.fillText(text, x + 3, y);
+        ctx.globalAlpha = 1;
+      });
+      ctx.textBaseline = "alphabetic";
+      ctx.textAlign = "left";
+    }
+    if (overlayHandleQueue.length) {
+      overlayHandleQueue.forEach(({ hx, hy, color }) => {
+        ctx.fillStyle = t.chart; ctx.globalAlpha = 0.95;
+        ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = color || t.warn; ctx.globalAlpha = 0.95; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+    }
     // Edge value indicators — arrows at left/right boundaries with values
     if (showEdgeValues) {
       const edgePillH = 14, edgeGap = 2;
+      const edgeBottomInset = 6;
       const drawEdge = (side) => {
         const isLeft = side === "left";
         const edgePills = [];
@@ -425,7 +442,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
         edgePills.forEach(p => {
           let py = p.y - edgePillH / 2;
           for (const prev of placed) { if (py < prev + edgePillH + edgeGap) py = prev + edgePillH + edgeGap; }
-          py = Math.max(pad.top, Math.min(pad.top + plotH - edgePillH, py));
+          py = Math.max(pad.top, Math.min(pad.top + plotH - edgePillH - edgeBottomInset, py));
           p._py = py; placed.push(py);
         });
         // Draw
@@ -603,7 +620,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
       // Draw value pills — only in non-delta mode on cursor1
       if (showPills && pills.length > 0) {
         ctx.textBaseline = "middle"; ctx.textAlign = "left";
-        const pillH = 16, pillGap = 2, pillPad = 6;
+        const pillH = 16, pillGap = 2, pillPad = 6, pillBottomInset = 6;
         const onRight = x < pad.left + plotW * 0.7;
 
         // Sort pills by Y position so layout flows top-to-bottom
@@ -621,15 +638,15 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             }
           }
           // Clamp inside plot area
-          py = Math.max(pad.top, Math.min(pad.top + plotH - pillH, py));
+          py = Math.max(pad.top, Math.min(pad.top + plotH - pillH - pillBottomInset, py));
           p._py = py;
           placed.push(py);
         });
 
         // If pills overflowed bottom, push everything up to fit
         const bottommost = placed[placed.length - 1];
-        if (bottommost + pillH > pad.top + plotH) {
-          const overflow = (bottommost + pillH) - (pad.top + plotH);
+        if (bottommost + pillH > pad.top + plotH - pillBottomInset) {
+          const overflow = (bottommost + pillH) - (pad.top + plotH - pillBottomInset);
           sorted.forEach(p => { p._py = Math.max(pad.top, p._py - overflow); });
         }
 
@@ -723,7 +740,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
 
         // Per-signal delta pills at both cursors (if pills enabled)
         if (pillsEnabled) {
-          const pillH = 14, pillGap = 2, pillPad = 5;
+          const pillH = 14, pillGap = 2, pillPad = 5, pillBottomInset = 6;
           // Collect values at both cursors
           const c1Pills = [], c2Pills = [];
           signalEntries.forEach((entry, si) => {
@@ -745,7 +762,7 @@ export default function ChartPane({ timestamps, signalEntries, cursorIdx, setCur
             pills.forEach(p => {
               let py = p.y - pillH / 2;
               for (const prev of placed) { if (py < prev + pillH + pillGap) py = prev + pillH + pillGap; }
-              py = Math.max(pad.top + 14, Math.min(pad.top + plotH - pillH, py));
+              py = Math.max(pad.top + 14, Math.min(pad.top + plotH - pillH - pillBottomInset, py));
               p._py = py; placed.push(py);
             });
             ctx.textBaseline = "middle";
