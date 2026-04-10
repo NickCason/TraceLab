@@ -122,6 +122,10 @@ export function mergeUnified(existingData, newData, offsetMs = 0) {
     trendName: `${existingData.meta?.trendName || 'Original'} + ${newData.meta?.trendName || 'Imported'}`,
     samplePeriod: exPeriod && newPeriod ? Math.min(exPeriod, newPeriod) : (exPeriod || newPeriod),
     tagCount: mergedSignals.length,
+    addedSourceFiles: [
+      ...(existingData.meta?.addedSourceFiles || []),
+      newData.meta?.sourceFile,
+    ].filter(Boolean),
   };
 
   return {

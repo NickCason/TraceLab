@@ -34,3 +34,39 @@ test('mergeUnified rejects empty timestamp datasets', () => {
     /empty timestamps/
   );
 });
+
+test('mergeUnified accumulates addedSourceFiles in mergedMeta', () => {
+  const existing = {
+    meta: { sourceFile: 'run1.csv', addedSourceFiles: [] },
+    timestamps: [1000, 2000],
+    signals: [{ name: 'A', values: [1, 2] }],
+    tagNames: ['A'],
+  };
+  const incoming = {
+    meta: { sourceFile: 'run2.csv' },
+    timestamps: [3000, 4000],
+    signals: [{ name: 'B', values: [3, 4] }],
+    tagNames: ['B'],
+  };
+
+  const merged = mergeUnified(existing, incoming, 0);
+  assert.deepEqual(merged.meta.addedSourceFiles, ['run2.csv']);
+});
+
+test('mergeUnified omits falsy sourceFile from addedSourceFiles', () => {
+  const existing = {
+    meta: {},
+    timestamps: [1000, 2000],
+    signals: [{ name: 'A', values: [1, 2] }],
+    tagNames: ['A'],
+  };
+  const incoming = {
+    meta: {},  // no sourceFile set
+    timestamps: [3000, 4000],
+    signals: [{ name: 'B', values: [3, 4] }],
+    tagNames: ['B'],
+  };
+
+  const merged = mergeUnified(existing, incoming, 0);
+  assert.deepEqual(merged.meta.addedSourceFiles, []);
+});
