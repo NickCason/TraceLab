@@ -13,7 +13,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
   const [editingLabel, setEditingLabel] = useState(false);
   const [labelInput, setLabelInput] = useState("");
   const popoverRef = useRef(null);
-  const escapeRef = useRef(false);
+  const skipBlurRef = useRef(false);
   const clickTimerRef = useRef(null);
 
   // Close popover on click-outside or Escape
@@ -38,6 +38,8 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
       document.removeEventListener("keydown", handleKey);
     };
   }, [showStylePicker]);
+
+  useEffect(() => () => clearTimeout(clickTimerRef.current), []);
 
   const DASH_OPTIONS = [
     { value: "solid", label: "—", desc: "Solid" },
@@ -115,13 +117,13 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
             value={labelInput}
             onChange={e => setLabelInput(e.target.value)}
             onBlur={() => {
-              if (!escapeRef.current) onRenameDisplay(index, labelInput.trim() || tagName);
-              escapeRef.current = false;
+              if (!skipBlurRef.current) onRenameDisplay(index, labelInput.trim() || tagName);
+              skipBlurRef.current = false;
               setEditingLabel(false);
             }}
             onKeyDown={e => {
-              if (e.key === "Enter") { onRenameDisplay(index, labelInput.trim() || tagName); setEditingLabel(false); }
-              if (e.key === "Escape") { escapeRef.current = true; setEditingLabel(false); }
+              if (e.key === "Enter") { skipBlurRef.current = true; onRenameDisplay(index, labelInput.trim() || tagName); setEditingLabel(false); }
+              if (e.key === "Escape") { skipBlurRef.current = true; setEditingLabel(false); }
               e.stopPropagation();
             }}
             onClick={e => e.stopPropagation()}
