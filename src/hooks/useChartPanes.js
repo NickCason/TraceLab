@@ -24,7 +24,7 @@ export function useChartPanes(data, signalState, fileIO, theme, t) {
       resolveSeam: includeSeam ? resolveSignalSeam : undefined,
       paneIdPrefix,
     });
-  }, [theme, t.sigColors]);
+  }, [theme, t]);
 
   const chartPanes = useMemo(() => buildDatasetPanes(data, {
     visible: signalState.visible,
