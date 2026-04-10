@@ -395,6 +395,17 @@ export default function App() {
   const isCombined = useMemo(() => groups.length > 0 && groups.every(g => g === groups[0]), [groups]);
   const resetZoom = () => { if (data) setViewRange([0, data.timestamps.length]); };
   const getDisplayName = (i) => metadata[i]?.displayName || data?.tagNames[i] || `Signal ${i}`;
+  const handleRenameDisplay = (idx, newName) => {
+    setMetadata(prev => {
+      const entry = { ...(prev[idx] || {}) };
+      if (newName) {
+        entry.displayName = newName;
+      } else {
+        delete entry.displayName;
+      }
+      return { ...prev, [idx]: entry };
+    });
+  };
   const getGroupLabel = (g) => groupNames[g] || `Group ${GROUP_LABELS[g - 1]}`;
   const addOverlay = useCallback((groupIdx, type = "line") => {
     const [baseType, axis] = String(type).includes(":") ? String(type).split(":") : [type, "y"];
@@ -879,6 +890,7 @@ export default function App() {
                       })}
                       theme={theme}
                       getDisplayName={getDisplayName}
+                      onRenameDisplay={handleRenameDisplay}
                     />
                   );
                 })}
