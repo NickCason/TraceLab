@@ -14,7 +14,6 @@ import ImportDialog from "./components/ImportDialog";
 import TutorialOverlay from "./components/tutorial/TutorialOverlay";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "./constants/theme";
 import { GROUP_COLORS_DARK, GROUP_COLORS_LIGHT } from "./constants/groups";
-import { getAutoSignalColor } from "./constants/colors";
 import { fmtDateISO } from "./utils/date";
 import { downloadBlob } from "./utils/download";
 import { buildProjectPayload } from "./utils/projectPersistence";
