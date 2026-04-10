@@ -112,6 +112,7 @@ function positionCard(cardEl, arrowEl, step, rect) {
 
 export default function TutorialOverlay({ open, onClose, t, theme }) {
   const [step, setStep] = useState(0);
+  const [confirming, setConfirming] = useState(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const steps = useMemo(() => buildSteps(t), [theme]);
 
@@ -122,7 +123,7 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
 
   // Reset step to 0 every time the overlay opens
   useEffect(() => {
-    if (open) setStep(0);
+    if (open) { setStep(0); setConfirming(false); }
   }, [open]);
 
   // Keyboard navigation
@@ -131,11 +132,13 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
     const onKeyDown = (e) => {
       if (e.key === "Escape") {
         e.stopPropagation(); e.preventDefault();
+        if (confirming) { setConfirming(false); return; }
         onClose();
         return;
       }
       if (e.key === "ArrowRight" || e.key === "Enter") {
         e.stopPropagation(); e.preventDefault();
+        setConfirming(false);
         setStep(s => {
           if (s < steps.length - 1) return s + 1;
           onClose();
@@ -145,12 +148,13 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
       }
       if (e.key === "ArrowLeft") {
         e.stopPropagation(); e.preventDefault();
+        setConfirming(false);
         setStep(s => s > 0 ? s - 1 : s);
       }
     };
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [open, steps.length, onClose]);
+  }, [open, steps.length, onClose, confirming]);
 
   // Positioning — runs after each render when open or step changes
   useEffect(() => {
@@ -204,7 +208,7 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
     <div
       style={{ position: "fixed", inset: 0, zIndex: 9000, pointerEvents: "auto" }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) setConfirming(true);
       }}
     >
       {/* Spotlight backdrop */}
@@ -217,13 +221,13 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
       <div className="tutorial-card visible" ref={cardRef} style={cardStyle}>
         {/* ✕ corner button */}
         <button
-          onClick={onClose}
+          onClick={() => setConfirming(true)}
           style={{
             position: "absolute", top: -10, right: -10,
             width: 22, height: 22, borderRadius: "50%",
             background: t.panel, border: `1px solid ${t.border}`,
             boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            display: confirming ? "none" : "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer", padding: 0,
             fontSize: 11, color: t.text3,
             pointerEvents: "auto",
@@ -236,92 +240,137 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
         {/* Arrow */}
         <div className="tutorial-card-arrow" ref={arrowRef} style={arrowStyle} />
 
-        {/* Step counter */}
-        <div style={{
-          fontSize: 10, color: t.text3, fontFamily: FONT_MONO,
-          textTransform: "uppercase", letterSpacing: 1, marginBottom: 6,
-        }}>
-          Step {step + 1} of {steps.length}
-        </div>
-
-        {/* Title */}
-        <h3 style={{
-          fontFamily: FONT_MONO, fontSize: 14, fontWeight: 600,
-          color: t.accent, margin: "0 0 10px", letterSpacing: 0.3,
-        }}>
-          {currentStep.title}
-        </h3>
-
-        {/* Diagram */}
-        {currentStep.svg && (
-          <div
-            className="tutorial-diagram"
-            style={{
-              display: "flex", justifyContent: "center",
-              marginBottom: 12, padding: "10px 0",
-              background: t.bg, borderRadius: 6,
-              border: `1px solid ${t.border}`,
-            }}
-            dangerouslySetInnerHTML={{ __html: currentStep.svg }}
-          />
-        )}
-
-        {/* Description */}
-        <p style={{
-          fontSize: 12.5, lineHeight: 1.65,
-          color: t.text2, margin: "0 0 14px",
-          fontFamily: FONT_DISPLAY,
-        }}>
-          {currentStep.desc}
-        </p>
-
-        {/* Navigation bar */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 6,
-          borderTop: `1px solid ${t.border}`, paddingTop: 12,
-        }}>
-          {/* Progress dots */}
-          <div style={{ display: "flex", gap: 4, alignItems: "center", marginRight: "auto" }}>
-            {steps.map((_, i) => (
-              <span key={i} style={{
-                display: "inline-block",
-                width: 6, height: 6, borderRadius: "50%",
-                background: i === step ? t.accent : i < step ? t.green : t.border,
-                transform: i === step ? "scale(1.3)" : "none",
-                transition: "background 0.2s, transform 0.2s",
-                flexShrink: 0,
-              }} />
-            ))}
+        {confirming ? (
+          <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
+            <p style={{
+              fontSize: 14, fontWeight: 600, color: t.text1,
+              margin: "0 0 8px", fontFamily: FONT_DISPLAY,
+            }}>
+              Exit the tutorial?
+            </p>
+            <p style={{
+              fontSize: 12, color: t.text3, margin: "0 0 20px",
+              lineHeight: 1.55, fontFamily: FONT_DISPLAY,
+            }}>
+              You can restart it anytime with the ? button.
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={() => { onClose(); setConfirming(false); }}
+                style={{
+                  padding: "5px 18px", borderRadius: 5, fontSize: 12, fontWeight: 600,
+                  cursor: "pointer", background: t.red, border: `1px solid ${t.red}`,
+                  color: "#fff", fontFamily: FONT_DISPLAY,
+                }}
+              >
+                Exit
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                style={{
+                  padding: "5px 18px", borderRadius: 5, fontSize: 12, fontWeight: 500,
+                  cursor: "pointer", background: t.surface, border: `1px solid ${t.border}`,
+                  color: t.text2, fontFamily: FONT_DISPLAY,
+                }}
+              >
+                Keep going
+              </button>
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Step counter */}
+            <div style={{
+              fontSize: 10, color: t.text3, fontFamily: FONT_MONO,
+              textTransform: "uppercase", letterSpacing: 1, marginBottom: 6,
+            }}>
+              Step {step + 1} of {steps.length}
+            </div>
 
-          {/* Back */}
-          <button
-            disabled={isFirst}
-            onClick={() => setStep(s => s - 1)}
-            style={{
-              padding: "5px 14px", borderRadius: 5, fontSize: 12, fontWeight: 500,
-              cursor: isFirst ? "default" : "pointer",
-              background: t.surface, border: `1px solid ${t.border}`,
-              color: t.text2, opacity: isFirst ? 0.35 : 1, fontFamily: FONT_DISPLAY,
-            }}
-          >
-            ← Back
-          </button>
+            {/* Title */}
+            <h3 style={{
+              fontFamily: FONT_MONO, fontSize: 14, fontWeight: 600,
+              color: t.accent, margin: "0 0 10px", letterSpacing: 0.3,
+            }}>
+              {currentStep.title}
+            </h3>
 
-          {/* Next / Finish */}
-          <button
-            onClick={() => isLast ? onClose() : setStep(s => s + 1)}
-            style={{
-              padding: "5px 14px", borderRadius: 5, fontSize: 12, fontWeight: 600,
-              cursor: "pointer",
-              background: t.accent, border: `1px solid ${t.accent}`,
-              color: t.chart,
+            {/* Diagram */}
+            {currentStep.svg && (
+              <div
+                className="tutorial-diagram"
+                style={{
+                  display: "flex", justifyContent: "center",
+                  marginBottom: 12, padding: "10px 0",
+                  background: t.bg, borderRadius: 6,
+                  border: `1px solid ${t.border}`,
+                }}
+                dangerouslySetInnerHTML={{ __html: currentStep.svg }}
+              />
+            )}
+
+            {/* Description */}
+            <p style={{
+              fontSize: 12.5, lineHeight: 1.65,
+              color: t.text2, margin: "0 0 14px",
               fontFamily: FONT_DISPLAY,
-            }}
-          >
-            {isLast ? "Finish" : "Next →"}
-          </button>
-        </div>
+            }}>
+              {currentStep.desc}
+            </p>
+
+            {/* Navigation bar */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              borderTop: `1px solid ${t.border}`, paddingTop: 12,
+            }}>
+              {/* Progress dots */}
+              <div style={{ display: "flex", gap: 4, alignItems: "center", marginRight: "auto" }}>
+                {steps.map((_, i) => (
+                  <span key={i} style={{
+                    display: "inline-block",
+                    width: 6, height: 6, borderRadius: "50%",
+                    background: i === step ? t.accent : i < step ? t.green : t.border,
+                    transform: i === step ? "scale(1.3)" : "none",
+                    transition: "background 0.2s, transform 0.2s",
+                    flexShrink: 0,
+                  }} />
+                ))}
+              </div>
+
+              {/* Back */}
+              <button
+                type="button"
+                disabled={isFirst}
+                onClick={() => { setConfirming(false); setStep(s => s - 1); }}
+                style={{
+                  padding: "5px 14px", borderRadius: 5, fontSize: 12, fontWeight: 500,
+                  cursor: isFirst ? "default" : "pointer",
+                  background: t.surface, border: `1px solid ${t.border}`,
+                  color: t.text2, opacity: isFirst ? 0.35 : 1, fontFamily: FONT_DISPLAY,
+                }}
+              >
+                ← Back
+              </button>
+
+              {/* Next / Finish */}
+              <button
+                type="button"
+                onClick={() => { setConfirming(false); isLast ? onClose() : setStep(s => s + 1); }}
+                style={{
+                  padding: "5px 14px", borderRadius: 5, fontSize: 12, fontWeight: 600,
+                  cursor: "pointer",
+                  background: t.accent, border: `1px solid ${t.accent}`,
+                  color: t.chart,
+                  fontFamily: FONT_DISPLAY,
+                }}
+              >
+                {isLast ? "Finish" : "Next →"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>,
     document.body
