@@ -124,6 +124,7 @@ export function useFileIO(data, setData, signalState, derivedPens, setReferenceO
       const proj = parsed.project;
       const loadedDerived = proj.derivedConfigs || {};
       const finalData = hydrateProjectData(proj.data, loadedDerived, derivedPens.recomputeDerivedSignals);
+      finalData.meta = { ...finalData.meta, projectFile: file.name };
       const normalized = normalizeLoadedProject(proj, finalData);
       setData(finalData);
       signalState.setVisible(normalized.visible);
