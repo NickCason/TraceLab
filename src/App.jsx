@@ -740,32 +740,32 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <ThemeToggle theme={theme} setTheme={setTheme} />
           <div style={{ width: 1, height: 22, background: t.border, marginLeft: 4, marginRight: 4 }} />
-          <ToolBtn onClick={() => { setDeltaMode(!deltaMode); setCursorIdx(null); setCursor2Idx(null); setDeltaLocked(false); }} active={deltaMode} activeColor={t.cursor2} t={t}>Δ Delta</ToolBtn>
+          <ToolBtn id="btn-delta" onClick={() => { setDeltaMode(!deltaMode); setCursorIdx(null); setCursor2Idx(null); setDeltaLocked(false); }} active={deltaMode} activeColor={t.cursor2} t={t}>Δ Delta</ToolBtn>
           <ToolBtn onClick={() => setShowPills(!showPills)} active={showPills} activeColor={t.green} t={t} title="Toggle cursor value pills">Pills</ToolBtn>
-          <ToolBtn onClick={() => setShowEdgeValues(!showEdgeValues)} active={showEdgeValues} activeColor={t.warn} t={t} title="Show entry/exit values at view edges">Edges</ToolBtn>
-          <ToolBtn onClick={() => setShowExtrema(!showExtrema)} active={showExtrema} activeColor={t.accent} t={t} title="Show per-signal max/min markers in current view">Peaks</ToolBtn>
+          <ToolBtn id="btn-edges" onClick={() => setShowEdgeValues(!showEdgeValues)} active={showEdgeValues} activeColor={t.warn} t={t} title="Show entry/exit values at view edges">Edges</ToolBtn>
+          <ToolBtn id="btn-peaks" onClick={() => setShowExtrema(!showExtrema)} active={showExtrema} activeColor={t.accent} t={t} title="Show per-signal max/min markers in current view">Peaks</ToolBtn>
           <ToolBtn onClick={isCombined ? soloAll : combineAll} active={!isCombined} activeColor={t.isolate} t={t}>{isCombined ? "Solo All" : "Combine"}</ToolBtn>
-          <ToolBtn onClick={resetZoom} t={t}>Fit</ToolBtn>
+          <ToolBtn id="btn-fit" onClick={resetZoom} t={t}>Fit</ToolBtn>
           <ToolBtn onClick={exportSnapshot} title="Save chart as PNG" t={t}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21,15 16,10 5,21" /></svg></ToolBtn>
-          <ToolBtn onClick={saveProject} title="Save project" t={t}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17,21 17,13 7,13 7,21" /><polyline points="7,3 7,8 15,8" /></svg></ToolBtn>
-          <ToolBtn onClick={() => projectInputRef.current?.click()} title="Load project" t={t}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg></ToolBtn>
+          <ToolBtn id="btn-save-project" onClick={saveProject} title="Save project" t={t}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17,21 17,13 7,13 7,21" /><polyline points="7,3 7,8 15,8" /></svg></ToolBtn>
+          <ToolBtn id="btn-load-project" onClick={() => projectInputRef.current?.click()} title="Load project" t={t}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg></ToolBtn>
           <input ref={projectInputRef} type="file" accept=".tracelab" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) loadProject(e.target.files[0]); }} />
-          <ToolBtn onClick={() => fileInputRef.current?.click()} t={t} style={{ background: t.accentDim, borderColor: `${t.accent}33`, color: t.accent }}>Load CSV</ToolBtn>
+          <ToolBtn id="btn-load-csv" onClick={() => fileInputRef.current?.click()} t={t} style={{ background: t.accentDim, borderColor: `${t.accent}33`, color: t.accent }}>Load CSV</ToolBtn>
           <input ref={fileInputRef} type="file" accept=".csv,.CSV,.tracelab" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) { f.name.endsWith(".tracelab") ? loadProject(f) : handleFile(f); } }} />
-          {data && <ToolBtn onClick={() => setImportDialogOpen(true)} t={t} style={{ background: t.green + "18", borderColor: t.green + "33", color: t.green }}>+ CSV</ToolBtn>}
+          {data && <ToolBtn id="btn-add-csv" onClick={() => setImportDialogOpen(true)} t={t} style={{ background: t.green + "18", borderColor: t.green + "33", color: t.green }}>+ CSV</ToolBtn>}
         </div>
       </div>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         <div style={{ width: 280, flexShrink: 0, background: t.panel, borderRight: `1px solid ${t.border}`, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: t.panelShadow }}>
           {importMode === "comparison" && (
-            <div style={{ display: "flex", borderBottom: `1px solid ${t.border}` }}>
+            <div id="sidebar-comparison-tabs" style={{ display: "flex", borderBottom: `1px solid ${t.border}` }}>
               <button onClick={() => setActiveSidebarDataset("primary")} style={tabSt(activeSidebarDataset === "primary", t.accent)}>Original</button>
               <button onClick={() => setActiveSidebarDataset("comparison")} style={tabSt(activeSidebarDataset === "comparison", t.green)}>Comparison</button>
             </div>
           )}
           <div style={{ display: "flex", borderBottom: `1px solid ${t.border}` }}>
-            {["signals", "stats", "meta", "rebase", "export"].map(tab => <button key={tab} onClick={() => setActivePanel(tab)} style={tabSt(activePanel === tab, tab === "export" ? t.green : tab === "rebase" ? t.warn : null)}>{tab}</button>)}
+            {["signals", "stats", "meta", "rebase", "export"].map(tab => <button key={tab} id={`tab-${tab}`} onClick={() => setActivePanel(tab)} style={tabSt(activePanel === tab, tab === "export" ? t.green : tab === "rebase" ? t.warn : null)}>{tab}</button>)}
           </div>
           <div style={{ flex: 1, overflow: "auto", padding: 10 }}>
             {/* ── Signals Tab — comparison mode: show comparison dataset signals ── */}
