@@ -61,6 +61,7 @@ export function useFileIO(data, setData, signalState, derivedPens, setReferenceO
     reader.onload = (e) => {
       const parsed = parseStudio5000CSV(e.target.result);
       if (parsed) {
+        parsed.meta.sourceFile = file.name;
         const reset = applyLoadedDataset(parsed);
         setData(parsed);
         signalState.setVisible(reset.visible);
