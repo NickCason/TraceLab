@@ -198,6 +198,7 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
     padding: "18px 20px 14px",
     zIndex: 9001,
     fontFamily: FONT_DISPLAY,
+    pointerEvents: "auto",
   };
 
   const arrowStyle = {
@@ -212,9 +213,12 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
 
   return ReactDOM.createPortal(
     <div
-      style={{ position: "fixed", inset: 0, zIndex: 9000, pointerEvents: "auto" }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9000,
+        pointerEvents: currentStep.allowInteract ? "none" : "auto",
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) setConfirming(true);
+        if (!currentStep.allowInteract && e.target === e.currentTarget) setConfirming(true);
       }}
     >
       {/* Spotlight backdrop */}

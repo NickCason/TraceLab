@@ -100,6 +100,7 @@ export function buildSteps(t) {
       title: 'Chart Cursor & Navigation',
       desc: 'Click the chart to place a cursor — signal values snap to the nearest sample and appear as pills above each line. Scroll to zoom in/out. Drag to pan. The time axis updates as you navigate.',
       prefer: 'top',
+      allowInteract: true,
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="264" height="64" rx="4" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
         <path d="M20 55 C55 55 70 22 100 22 C130 22 145 50 175 46 C205 42 225 30 265 26" stroke="${t.accent}" stroke-width="2" fill="none"/>
@@ -118,6 +119,7 @@ export function buildSteps(t) {
       title: 'Edge Values & Peaks',
       desc: 'Edges shows the signal value at the left and right edges of the current view — useful when signals enter or exit the visible range. Peaks marks the per-signal min and max within the current view.',
       prefer: 'bottom',
+      allowInteract: true,
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="264" height="64" rx="4" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
         <path d="M20 55 C60 55 80 22 115 22 C150 22 165 50 200 46 C225 43 245 32 265 28" stroke="${t.accent}" stroke-width="2" fill="none"/>
@@ -136,6 +138,7 @@ export function buildSteps(t) {
       title: 'Delta Mode',
       desc: 'Delta Mode places two independent cursors. Click to set cursor 1, right-click (or second click) to set cursor 2. The time difference and value difference between cursors appear as a readout in the chart.',
       prefer: 'bottom',
+      allowInteract: true,
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="264" height="64" rx="4" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
         <path d="M20 55 C60 55 80 25 115 22 C150 19 165 50 200 46 C225 43 245 30 265 26" stroke="${t.accent}" stroke-width="2" fill="none"/>
