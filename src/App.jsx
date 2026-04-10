@@ -953,7 +953,11 @@ export default function App() {
             {chartPanes.map((pane, pi) => {
               const paneGc = gc[pane.groupIdx - 1] || gc[0];
               return (
-                <div key={pane.id} style={{ flex: 1, minHeight: 48, position: "relative", display: "flex", flexDirection: "column", borderBottom: pi === chartPanes.length - 1 ? "none" : `1px solid ${t.border}` }}>
+                <div
+                  key={pane.id}
+                  id={pi === 0 ? "chart-pane-0" : undefined}
+                  style={{ flex: 1, minHeight: 48, position: "relative", display: "flex", flexDirection: "column", borderBottom: pi === chartPanes.length - 1 ? "none" : `1px solid ${t.border}` }}
+                >
                   {/* Group color bar at top of pane */}
                   {paneGc && (
                     <div style={{
@@ -976,6 +980,7 @@ export default function App() {
                       ))}
                       <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                         <button
+                          id={pi === 0 ? "btn-add-derived-0" : undefined}
                           onClick={() => setDerivedDialog({ open: true, mode: "create", groupIdx: pane.groupIdx, type: "equation", editIdx: null, initialDraft: null })}
                           style={{ padding: "1px 6px", borderRadius: 4, border: `1px solid ${paneGc}66`, background: paneGc + "22", color: paneGc, fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, cursor: "pointer" }}
                           title="Add derived pen to this chart"
@@ -984,6 +989,7 @@ export default function App() {
                         </button>
                         <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
                           <button
+                            id={pi === 0 ? "btn-add-reference-0" : undefined}
                             onClick={() => setOverlayPickerGroup(prev => prev === pane.groupIdx ? null : pane.groupIdx)}
                             style={{ padding: "1px 6px", borderRadius: 4, border: `1px solid ${paneGc}66`, background: paneGc + "22", color: paneGc, fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, cursor: "pointer" }}
                             title="Add reference overlay"
