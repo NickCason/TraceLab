@@ -52,6 +52,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
 
   return (
     <div
+      id={groupIdx === 1 ? "group-panel-1" : undefined}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
       style={{
         borderRadius: 8, marginBottom: 4, overflow: "visible",
@@ -162,7 +163,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
       {!collapsed && !isEmpty && (
         <div style={{ padding: "2px 6px 6px" }}>
           <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
-            <div onClick={() => setShowOverlays(v => !v)} style={{ fontSize: 11, color: t.text3, fontWeight: 700, letterSpacing: 0.6, fontFamily: FONT_DISPLAY, cursor: "pointer", userSelect: "none" }}>
+            <div id={groupIdx === 1 ? "overlays-section-1" : undefined} onClick={() => setShowOverlays(v => !v)} style={{ fontSize: 11, color: t.text3, fontWeight: 700, letterSpacing: 0.6, fontFamily: FONT_DISPLAY, cursor: "pointer", userSelect: "none" }}>
               OVERLAYS <span style={{ color: t.text4, fontWeight: 500 }}>({referenceOverlays.length})</span> {showOverlays ? "▾" : "▸"}
             </div>
           </div>

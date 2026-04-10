@@ -51,6 +51,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
 
   return (
     <div
+      id={index === 0 ? "signal-card-0" : undefined}
       draggable={!showStylePicker}
       onDragStart={(e) => {
         const interactive = e.target.closest?.("input, button, select, textarea");
