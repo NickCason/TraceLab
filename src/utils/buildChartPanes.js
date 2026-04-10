@@ -64,7 +64,9 @@ export function buildChartPanes({
       const style = signalStyles?.[i] || {};
       const baseColor = style.color || getAutoSignalColor(theme, i) || palette[i % palette.length];
       const seamCfg = resolveSeam ? resolveSeam(style, signal.values) : null;
-      const seam = seamCfg?.active ? { offset: seamCfg.offset, origin: seamCfg.origin, span: seamCfg.span } : null;
+      const seam = (seamCfg?.active || seamCfg?.isCyclic)
+        ? { offset: seamCfg.offset ?? 0, origin: seamCfg.origin, span: seamCfg.span }
+        : null;
       const displayName = getDisplayName(i);
 
       if (!hideOriginal?.[i]) {

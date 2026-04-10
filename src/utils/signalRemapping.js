@@ -1,5 +1,5 @@
 // src/utils/signalRemapping.js
-import { clampSeamPercent, hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./seamAdjustment";
+import { clampSeamPercent, hasSeamAdjustment, inferSeamDomain, seamPercentToOffset, seamOffsetToPercent } from "./seamAdjustment.js";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
 
