@@ -115,34 +115,6 @@ export function useFileIO(data, setData, signalState, derivedPens, setReferenceO
     showToast(`Comparison mode: ${newData.tagNames.length} tags loaded`, "success");
   }, [showToast]);
 
-  const saveProject = useCallback(() => {
-    if (!data) return;
-    const project = buildProjectPayload({
-      data,
-      visible: signalState.visible,
-      groups: signalState.groups,
-      groupNames: signalState.groupNames,
-      signalStyles: signalState.signalStyles,
-      metadata: signalState.metadata,
-      referenceOverlays: undefined, // passed via overlays — see App.jsx wiring
-      viewRange: signalState.viewRange,
-      rebaseOffset,
-      deltaMode: signalState.deltaMode,
-      showPills: signalState.showPills,
-      showEdgeValues: signalState.showEdgeValues,
-      splitRanges: signalState.splitRanges,
-      avgWindow: signalState.avgWindow,
-      hideOriginal: signalState.hideOriginal,
-      derivedConfigs: derivedPens.derivedConfigs,
-      importMode,
-      comparisonData,
-      comparisonState,
-    });
-    const blob = new Blob([JSON.stringify(project)], { type: "application/json" });
-    const filename = `${(data.meta.trendName || "project").replace(/\s+/g, "_")}.tracelab`;
-    downloadBlob(blob, filename, () => showToast("Project saved", "success"));
-  }, [data, signalState, derivedPens.derivedConfigs, rebaseOffset, importMode, comparisonData, comparisonState, showToast]);
-
   const loadProject = useCallback((file) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -211,7 +183,7 @@ export function useFileIO(data, setData, signalState, derivedPens, setReferenceO
     importDialogOpen, setImportDialogOpen,
     updateComparisonState,
     handleFile, handleUnifiedImport, handleComparisonImport,
-    saveProject, loadProject, handleDrop,
+    loadProject, handleDrop,
     applyRebase, clearRebase,
   };
 }
