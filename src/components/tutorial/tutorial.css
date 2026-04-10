@@ -1,0 +1,87 @@
+/* ── Backdrop ── */
+.tutorial-backdrop {
+  position: absolute;
+  border-radius: 6px;
+  pointer-events: none;
+  transition:
+    top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    border-radius 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tutorial-backdrop.has-target {
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+}
+.tutorial-backdrop.no-target {
+  inset: 0;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* ── Pulse Ring ── */
+.tutorial-pulse {
+  position: absolute;
+  border-radius: 8px;
+  pointer-events: none;
+  transition:
+    top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tutorial-pulse::before,
+.tutorial-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 2px solid var(--pulse-color, #8b8ff5);
+  animation: tutorialPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.tutorial-pulse::after {
+  animation-delay: 0.6s;
+}
+@keyframes tutorialPulse {
+  0%   { transform: scale(1);    opacity: 0.7; }
+  70%  { transform: scale(1.18); opacity: 0;   }
+  100% { transform: scale(1.18); opacity: 0;   }
+}
+
+/* ── Coach Card ── */
+.tutorial-card {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease,
+    top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+.tutorial-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.tutorial-card.centered {
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%);
+}
+.tutorial-card.centered.visible {
+  transform: translate(-50%, -50%);
+}
+
+/* ── Card Arrow ── */
+.tutorial-card-arrow.arrow-top    { top: -7px;    border-bottom: none; border-right: none;  }
+.tutorial-card-arrow.arrow-bottom { bottom: -7px;  border-top: none;    border-left: none;   }
+.tutorial-card-arrow.arrow-left   { left: -7px;   border-top: none;    border-right: none;  }
+.tutorial-card-arrow.arrow-right  { right: -7px;  border-bottom: none; border-left: none;   }
+
+/* ── Diagram SVG sizing ── */
+.tutorial-diagram svg {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+}
