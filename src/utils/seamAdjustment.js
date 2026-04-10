@@ -30,11 +30,11 @@ export function inferSeamDomain(values = []) {
     if (v < min) min = v;
     if (v > max) max = v;
   });
-  if (min === Infinity || max === -Infinity) return { origin: 0, span: 360 };
+  if (min === Infinity || max === -Infinity) return { origin: 0, span: 360, isCyclic: false };
   const rawSpan = Math.max(1e-9, max - min);
   // Preserve legacy behavior for angular tags that are effectively 0..360.
-  if (min >= -1 && max <= 361 && rawSpan >= 300) return { origin: 0, span: 360 };
-  return { origin: min, span: rawSpan };
+  if (min >= -1 && max <= 361 && rawSpan >= 300) return { origin: 0, span: 360, isCyclic: true };
+  return { origin: min, span: rawSpan, isCyclic: false };
 }
 
 export function clampSeamPercent(percent) {

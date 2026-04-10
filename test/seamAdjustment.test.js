@@ -34,9 +34,12 @@ test('hasSeamAdjustment detects meaningful offsets', () => {
 });
 
 test('inferSeamDomain keeps legacy 0..360 behavior and supports arbitrary ranges', () => {
-  assert.deepEqual(inferSeamDomain([0, 90, 180, 359]), { origin: 0, span: 360 });
-  assert.deepEqual(inferSeamDomain([-10, 20, 50]), { origin: -10, span: 60 });
-  assert.deepEqual(inferSeamDomain([null, undefined]), { origin: 0, span: 360 });
+  assert.deepEqual(inferSeamDomain([0, 90, 180, 359]), { origin: 0, span: 360, isCyclic: true });
+  assert.deepEqual(inferSeamDomain([-10, 20, 50]), { origin: -10, span: 60, isCyclic: false });
+  // Empty/all-null values use the safe fallback — not cyclic
+  assert.deepEqual(inferSeamDomain([null, undefined]), { origin: 0, span: 360, isCyclic: false });
+  // Non-regression: counter-style values (min far above 0) stay isCyclic: false
+  assert.deepEqual(inferSeamDomain([479, 500, 600, 797]), { origin: 479, span: 318, isCyclic: false });
 });
 
 test('percent/offset helpers clamp and convert reliably', () => {
