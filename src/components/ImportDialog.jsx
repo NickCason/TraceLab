@@ -106,15 +106,16 @@ export default function ImportDialog({ open, onClose, existingData, theme, t, on
 
   const handleImport = useCallback(() => {
     if (!parsedData) return;
+    const taggedData = { ...parsedData, meta: { ...parsedData.meta, sourceFile: fileName } };
     if (mode === "unified") {
-      const merged = mergeUnified(existingData, parsedData, offset);
+      const merged = mergeUnified(existingData, taggedData, offset);
       const newSignalStartIdx = existingData.signals.length;
       onImportUnified(merged, newSignalStartIdx);
     } else {
-      onImportComparison(parsedData);
+      onImportComparison(taggedData);
     }
     reset();
-  }, [parsedData, mode, existingData, offset, onImportUnified, onImportComparison, reset]);
+  }, [parsedData, fileName, mode, existingData, offset, onImportUnified, onImportComparison, reset]);
 
   if (!open) return null;
 
