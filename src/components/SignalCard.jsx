@@ -117,12 +117,12 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
             value={labelInput}
             onChange={e => setLabelInput(e.target.value)}
             onBlur={() => {
-              if (!skipBlurRef.current) onRenameDisplay(index, labelInput.trim() || tagName);
+              if (!skipBlurRef.current) onRenameDisplay(index, labelInput.trim());
               skipBlurRef.current = false;
               setEditingLabel(false);
             }}
             onKeyDown={e => {
-              if (e.key === "Enter") { skipBlurRef.current = true; onRenameDisplay(index, labelInput.trim() || tagName); setEditingLabel(false); }
+              if (e.key === "Enter") { skipBlurRef.current = true; onRenameDisplay(index, labelInput.trim()); setEditingLabel(false); }
               if (e.key === "Escape") { skipBlurRef.current = true; setEditingLabel(false); }
               e.stopPropagation();
             }}
