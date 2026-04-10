@@ -10,7 +10,7 @@ export default function AppHeader({
   setDeltaMode, setShowPills, setShowEdgeValues, setShowExtrema,
   setCursorIdx, setCursor2Idx, setDeltaLocked,
   combineAll, soloAll, resetZoom,
-  exportSnapshot, saveProject, loadProject,
+  exportSnapshot, saveProject, loadProject, handleFile,
   setTutorialOpen, setImportDialogOpen,
   setImportMode, setComparisonData, setComparisonState, setActiveSidebarDataset,
 }) {
