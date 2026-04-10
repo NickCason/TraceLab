@@ -13,6 +13,8 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
   const [editingLabel, setEditingLabel] = useState(false);
   const [labelInput, setLabelInput] = useState("");
   const popoverRef = useRef(null);
+  const escapeRef = useRef(false);
+  const clickTimerRef = useRef(null);
 
   // Close popover on click-outside or Escape
   useEffect(() => {
@@ -54,7 +56,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
   return (
     <div
       id={index === 0 ? "signal-card-0" : undefined}
-      draggable={!showStylePicker}
+      draggable={!showStylePicker && !editingLabel}
       onDragStart={(e) => {
         const interactive = e.target.closest?.("input, button, select, textarea");
         if (interactive || showStylePicker) {
@@ -68,7 +70,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
         display: "flex", alignItems: "center", gap: 5, padding: "5px 7px", borderRadius: 8, marginBottom: 2,
         background: vis ? t.surface : "transparent",
         opacity: vis ? 1 : 0.3, transition: "all 0.15s",
-        cursor: "grab", userSelect: "none",
+        cursor: editingLabel ? "default" : "grab", userSelect: "none",
         border: `1px solid transparent`,
         position: "relative", overflow: "visible",
       }}
@@ -101,16 +103,25 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
           </svg>
         </div>
       </div>
-      <div onClick={(e) => { e.stopPropagation(); if (!editingLabel) onToggleVisible(index); }} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
+      <div onClick={(e) => {
+        e.stopPropagation();
+        if (editingLabel) return;
+        clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = setTimeout(() => onToggleVisible(index), 200);
+      }} style={{ flex: 1, minWidth: 0, cursor: editingLabel ? "default" : "pointer" }}>
         {editingLabel ? (
           <input
             autoFocus
             value={labelInput}
             onChange={e => setLabelInput(e.target.value)}
-            onBlur={() => { onRenameDisplay(index, labelInput.trim() || tagName); setEditingLabel(false); }}
+            onBlur={() => {
+              if (!escapeRef.current) onRenameDisplay(index, labelInput.trim() || tagName);
+              escapeRef.current = false;
+              setEditingLabel(false);
+            }}
             onKeyDown={e => {
               if (e.key === "Enter") { onRenameDisplay(index, labelInput.trim() || tagName); setEditingLabel(false); }
-              if (e.key === "Escape") { setEditingLabel(false); }
+              if (e.key === "Escape") { escapeRef.current = true; setEditingLabel(false); }
               e.stopPropagation();
             }}
             onClick={e => e.stopPropagation()}
@@ -125,7 +136,7 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
         ) : (
           <MarqueeText style={{ fontSize: 13, fontWeight: 600, color: vis ? t.text1 : t.text3, display: "flex", alignItems: "center", gap: 3 }}>
             <span
-              onDoubleClick={e => { e.stopPropagation(); setLabelInput(displayName); setEditingLabel(true); }}
+              onDoubleClick={e => { e.stopPropagation(); clearTimeout(clickTimerRef.current); setShowStylePicker(false); setLabelInput(displayName); setEditingLabel(true); }}
               style={{ cursor: "text" }}
             >
               {displayName}
