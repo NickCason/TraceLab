@@ -5,7 +5,7 @@ import { EXTENDED_COLOR_SWATCHES, getAutoSignalColor } from "../constants/colors
 import SignalCard from "./SignalCard";
 import ColorPicker from "./ColorPicker";
 
-export default function GroupPanel({ groupIdx, label, color, signals, sigColors, visible, groups, cursorValues, cursor2Values, deltaMode, metadata, data, onDrop, onToggleVisible, onToggleGroup, onSetGroupName, onStyleChange, signalStyles, referenceOverlays = [], derivedConfigs, onEditDerived, onDeleteDerived, onAddOverlay, onUpdateOverlay, onDeleteOverlay, theme, getDisplayName }) {
+export default function GroupPanel({ groupIdx, label, color, signals, sigColors, visible, groups, cursorValues, cursor2Values, deltaMode, metadata, data, onDrop, onToggleVisible, onToggleGroup, onSetGroupName, onStyleChange, signalStyles, referenceOverlays = [], derivedConfigs, onEditDerived, onDeleteDerived, onAddOverlay, onUpdateOverlay, onDeleteOverlay, theme, getDisplayName, onRenameDisplay }) {
   const t = THEMES[theme];
   const [dragOver, setDragOver] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -149,6 +149,7 @@ export default function GroupPanel({ groupIdx, label, color, signals, sigColors,
               isDigital={data.signals[i].isDigital}
               onToggleVisible={onToggleVisible}
               onStyleChange={onStyleChange}
+              onRenameDisplay={onRenameDisplay}
               isDerived={!!data.signals[i].isDerived}
               seamOffsetPct={signalStyles[i]?.seamOffsetPct}
               seamOffset={signalStyles[i]?.seamOffset || 0}
