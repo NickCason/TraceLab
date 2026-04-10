@@ -6,10 +6,12 @@ import MarqueeText from "./MarqueeText";
 import ColorPicker from "./ColorPicker";
 import { clampSeamPercent, inferSeamDomain, seamOffsetToPercent, snapSeamPercent } from "../utils/seamAdjustment";
 
-export default function SignalCard({ index, signal, color, dash, strokeMode = "solid", thickness = 1.5, opacity = 0.92, displayName, tagName, unit, visible: vis, cursorValue, cursorValueIsInterpolated, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, seamOffsetPct, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, theme }) {
+export default function SignalCard({ index, signal, color, dash, strokeMode = "solid", thickness = 1.5, opacity = 0.92, displayName, tagName, unit, visible: vis, cursorValue, cursorValueIsInterpolated, cursor2Value, deltaMode, isDigital, isDerived, derivedType, seamOffset = 0, seamOffsetPct, onEditDerived, onDeleteDerived, onToggleVisible, onStyleChange, onRenameDisplay, theme }) {
   const t = THEMES[theme];
   const hasCustomName = displayName !== tagName;
   const [showStylePicker, setShowStylePicker] = useState(false);
+  const [editingLabel, setEditingLabel] = useState(false);
+  const [labelInput, setLabelInput] = useState("");
   const popoverRef = useRef(null);
 
   // Close popover on click-outside or Escape
@@ -99,19 +101,46 @@ export default function SignalCard({ index, signal, color, dash, strokeMode = "s
           </svg>
         </div>
       </div>
-      <div onClick={(e) => { e.stopPropagation(); onToggleVisible(index); }} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
-        <MarqueeText style={{ fontSize: 13, fontWeight: 600, color: vis ? t.text1 : t.text3, display: "flex", alignItems: "center", gap: 3 }}>
-          {displayName}
-          {unit && <span style={{ fontSize: 13, color: t.text3, fontWeight: 400, fontFamily: FONT_MONO, flexShrink: 0 }}>[{unit}]</span>}
-          {isDigital && <span style={{ fontSize: 12, color: t.accent, background: t.accentDim, padding: "1px 4px", borderRadius: 3, fontWeight: 700, letterSpacing: 0.5, lineHeight: "10px", flexShrink: 0, fontFamily: FONT_DISPLAY }}>DIG</span>}
-          {isDerived && <span style={{ fontSize: 10, color: t.warn, background: t.warn + "18", padding: "1px 4px", borderRadius: 3, fontWeight: 700, letterSpacing: 0.5, lineHeight: "10px", flexShrink: 0, fontFamily: FONT_MONO }}>{(derivedType || "derived").toUpperCase()}</span>}
-        </MarqueeText>
-        {hasCustomName && (
+      <div onClick={(e) => { e.stopPropagation(); if (!editingLabel) onToggleVisible(index); }} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
+        {editingLabel ? (
+          <input
+            autoFocus
+            value={labelInput}
+            onChange={e => setLabelInput(e.target.value)}
+            onBlur={() => { onRenameDisplay(index, labelInput.trim() || tagName); setEditingLabel(false); }}
+            onKeyDown={e => {
+              if (e.key === "Enter") { onRenameDisplay(index, labelInput.trim() || tagName); setEditingLabel(false); }
+              if (e.key === "Escape") { setEditingLabel(false); }
+              e.stopPropagation();
+            }}
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%", fontSize: 13, fontWeight: 600,
+              background: t.inputBg, border: `1px solid ${t.accent}`,
+              borderRadius: 4, padding: "0 4px", color: t.text1,
+              fontFamily: FONT_DISPLAY, outline: "none", minWidth: 0,
+              boxSizing: "border-box",
+            }}
+          />
+        ) : (
+          <MarqueeText style={{ fontSize: 13, fontWeight: 600, color: vis ? t.text1 : t.text3, display: "flex", alignItems: "center", gap: 3 }}>
+            <span
+              onDoubleClick={e => { e.stopPropagation(); setLabelInput(displayName); setEditingLabel(true); }}
+              style={{ cursor: "text" }}
+            >
+              {displayName}
+            </span>
+            {unit && <span style={{ fontSize: 13, color: t.text3, fontWeight: 400, fontFamily: FONT_MONO, flexShrink: 0 }}>[{unit}]</span>}
+            {isDigital && <span style={{ fontSize: 12, color: t.accent, background: t.accentDim, padding: "1px 4px", borderRadius: 3, fontWeight: 700, letterSpacing: 0.5, lineHeight: "10px", flexShrink: 0, fontFamily: FONT_DISPLAY }}>DIG</span>}
+            {isDerived && <span style={{ fontSize: 10, color: t.warn, background: t.warn + "18", padding: "1px 4px", borderRadius: 3, fontWeight: 700, letterSpacing: 0.5, lineHeight: "10px", flexShrink: 0, fontFamily: FONT_MONO }}>{(derivedType || "derived").toUpperCase()}</span>}
+          </MarqueeText>
+        )}
+        {!editingLabel && hasCustomName && (
           <MarqueeText style={{ fontSize: 12, color: t.text4, fontFamily: FONT_MONO, marginTop: 1 }}>
             {tagName}
           </MarqueeText>
         )}
-        {cursorValue !== undefined && cursorValue !== null && vis && (
+        {!editingLabel && cursorValue !== undefined && cursorValue !== null && vis && (
           <div style={{ fontSize: 13, color: color, marginTop: 1, fontFamily: FONT_MONO, opacity: cursorValueIsInterpolated ? 0.6 : 1 }}>
             {cursorValue?.toFixed(3) ?? "—"}{cursorValueIsInterpolated ? " ~" : ""}{unit ? ` ${unit}` : ""}
           </div>
