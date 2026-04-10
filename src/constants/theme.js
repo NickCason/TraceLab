@@ -1,4 +1,4 @@
-import { SIGNAL_PALETTE } from "./colors";
+import { SIGNAL_PALETTE } from "./colors.js";
 
 export const THEMES = {
   dark: {
