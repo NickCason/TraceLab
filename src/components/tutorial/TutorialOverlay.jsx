@@ -215,6 +215,24 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
 
       {/* Coach card */}
       <div className="tutorial-card visible" ref={cardRef} style={cardStyle}>
+        {/* ✕ corner button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute", top: -10, right: -10,
+            width: 22, height: 22, borderRadius: "50%",
+            background: t.panel, border: `1px solid ${t.border}`,
+            boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", padding: 0,
+            fontSize: 11, color: t.text3,
+            pointerEvents: "auto",
+          }}
+          aria-label="Exit tutorial"
+        >
+          ✕
+        </button>
+
         {/* Arrow */}
         <div className="tutorial-card-arrow" ref={arrowRef} style={arrowStyle} />
 
@@ -302,19 +320,6 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
             }}
           >
             {isLast ? "Finish" : "Next →"}
-          </button>
-
-          {/* Skip / Close */}
-          <button
-            onClick={onClose}
-            style={{
-              marginLeft: "auto", background: "none", border: "none",
-              color: t.text3, textDecoration: "underline",
-              textUnderlineOffset: 2, fontSize: 11,
-              padding: "4px 6px", cursor: "pointer", fontFamily: FONT_DISPLAY,
-            }}
-          >
-            {isLast ? "Close" : "Skip"}
           </button>
         </div>
       </div>
