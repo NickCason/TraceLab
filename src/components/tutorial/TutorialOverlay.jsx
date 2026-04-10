@@ -120,11 +120,17 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
   const pulseRef    = useRef(null);
   const cardRef     = useRef(null);
   const arrowRef    = useRef(null);
+  const exitBtnRef  = useRef(null);
 
   // Reset step to 0 every time the overlay opens
   useEffect(() => {
     if (open) { setStep(0); setConfirming(false); }
   }, [open]);
+
+  // Move focus to Exit button when confirmation dialog appears
+  useEffect(() => {
+    if (confirming && exitBtnRef.current) exitBtnRef.current.focus();
+  }, [confirming]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -173,7 +179,7 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", position);
     };
-  }, [open, step, steps, t.accent]);
+  }, [open, step, steps, t.accent, confirming]);
 
   if (!open) return null;
 
@@ -256,6 +262,7 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
             </p>
             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
               <button
+                ref={exitBtnRef}
                 type="button"
                 onClick={() => { onClose(); setConfirming(false); }}
                 style={{
