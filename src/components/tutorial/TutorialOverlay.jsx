@@ -121,7 +121,7 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
   const pulseRef     = useRef(null);
   const cardRef      = useRef(null);
   const arrowRef     = useRef(null);
-  const exitBtnRef  = useRef(null);
+  const exitBtnRef   = useRef(null);
 
   // Reset step to 0 every time the overlay opens
   useEffect(() => {
@@ -168,7 +168,7 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
     if (!open) return;
     const position = () => {
       const s = steps[step];
-      const selectors = s.targets ? s.targets : (s.target ? [s.target] : []);
+      const selectors = s?.targets ? s.targets : (s?.target ? [s.target] : []);
       const primaryRect   = selectors[0] ? getTargetRect(selectors[0]) : null;
       const secondaryRect = selectors[1] ? getTargetRect(selectors[1]) : null;
 
@@ -185,6 +185,8 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
           backdropRef2.current.style.height = `${secondaryRect.height + PAD * 2}px`;
         } else {
           backdropRef2.current.style.display = "none";
+          backdropRef2.current.style.top = backdropRef2.current.style.left =
+            backdropRef2.current.style.width = backdropRef2.current.style.height = "";
         }
       }
     };
@@ -240,7 +242,7 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
       {/* Primary spotlight */}
       <div className="tutorial-backdrop" ref={backdropRef} />
       {/* Secondary spotlight (multi-target steps) */}
-      <div className="tutorial-backdrop secondary-highlight" ref={backdropRef2} style={{ display: "none" }} />
+      <div className="tutorial-backdrop secondary-highlight" ref={backdropRef2} style={{ display: "none", zIndex: 1 }} />
 
       {/* Pulse ring around target */}
       <div className="tutorial-pulse" ref={pulseRef} style={{ display: "none" }} />
