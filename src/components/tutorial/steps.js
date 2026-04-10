@@ -9,7 +9,7 @@ export function buildSteps(t) {
     {
       target: null,
       title: 'Welcome to TraceLab',
-      desc: 'TraceLab is a browser-based PLC trend CSV viewer. Load a Studio 5000 CSV, explore signals across grouped chart panes, and export annotated snapshots — all without installing anything.',
+      desc: 'TraceLab is a fast, browser-based viewer for PLC trend data. Load a Studio 5000 CSV, explore signals across grouped chart panes, use cursors, overlays, and derived values to inspect behavior, and export annotated snapshots — no install, just open and go.',
       prefer: null,
       svg: `<svg viewBox="0 0 280 90" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="264" height="74" rx="6" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
@@ -73,7 +73,7 @@ export function buildSteps(t) {
     {
       target: '#signal-card-0',
       title: 'Signals — Style Editing',
-      desc: "Click the gear/swatch on any signal card to open style options: change color, line dash pattern, stroke weight, or opacity. You can also rename a tag's display label here.",
+      desc: "Click the gear/swatch on any signal card to open style options: change color, line dash pattern, stroke weight, or opacity. Double-click a signal's label to rename it inline. Changes sync with the Meta tab.",
       prefer: 'right',
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="12" width="130" height="58" rx="6" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
@@ -98,7 +98,7 @@ export function buildSteps(t) {
     {
       target: '#chart-pane-0',
       title: 'Chart Cursor & Navigation',
-      desc: 'Click the chart to place a cursor — signal values snap to the nearest sample and appear as pills above each line. Scroll to zoom in/out. Drag to pan. The time axis updates as you navigate.',
+      desc: 'Hover over the chart to move the cursor — signal values snap to the nearest sample and appear as pills above each line. Scroll to zoom in/out. Drag to pan. The time axis updates as you navigate.',
       prefer: 'top',
       allowInteract: true,
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -174,7 +174,7 @@ export function buildSteps(t) {
     {
       target: '#btn-add-derived-0',
       title: 'Derived Signals — Adding One',
-      desc: 'Click + Derived in the chart pane header to open the derived signal dialog. You can create a new signal as a math expression, rolling average, difference, ratio, or other combination of loaded signals.',
+      desc: 'Click + Derived in the chart pane header to open the derived signal dialog. You can create a new signal as a math expression, rolling average, difference, ratio, or other combination of loaded signals — and manage it as a new pen.',
       prefer: 'top',
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="8" width="264" height="18" rx="3" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
@@ -191,7 +191,7 @@ export function buildSteps(t) {
     {
       target: null,
       title: 'Derived Signals — The Dialog',
-      desc: 'In the dialog, pick a type (Equation, Difference, Rolling Avg, etc.) then configure its parameters. Equation mode supports token syntax: s0, s1 ... for each loaded signal, plus standard math like avg(s0), abs(s0 - s1).',
+      desc: 'In the dialog, pick a type (Equation, Difference, Rolling Avg, etc.) then configure its parameters. Equation mode supports token syntax: s0, s1 ... for each loaded signal, plus standard math like avg(s0), abs(s0 - s1). Once added, edit or delete a derived signal from its signal card popover.',
       prefer: null,
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="30" y="8" width="220" height="64" rx="6" stroke="${t.border}" stroke-width="1" fill="${t.panel}"/>
@@ -213,15 +213,19 @@ export function buildSteps(t) {
       desc: 'Click + Reference in the chart pane header to add a horizontal line, horizontal band, vertical sample line, or vertical sample band overlay. Reference overlays are stored per Group.',
       prefer: 'top',
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="8" y="8" width="264" height="18" rx="3" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
-        <text x="16" y="20" font-size="8" fill="${t.accent}" font-family="JetBrains Mono, monospace" font-weight="700">GROUP A</text>
-        <rect x="172" y="11" width="92" height="12" rx="3" fill="${t.green}22" stroke="${t.green}66" stroke-width="1"/>
-        <text x="218" y="20" font-size="8" fill="${t.green}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="700">+ Reference</text>
-        <rect x="8" y="30" width="264" height="42" rx="3" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
-        <path d="M20 58 C60 58 80 36 115 36 C148 36 165 56 264 51" stroke="${t.accent}" stroke-width="1.5" fill="none"/>
-        <line x1="20" y1="48" x2="264" y2="48" stroke="${t.warn}" stroke-width="1" stroke-dasharray="4 3"/>
-        <rect x="20" y="42" width="244" height="12" rx="2" fill="${t.warn}" opacity="0.08"/>
-      </svg>`,
+  <rect x="8" y="8" width="264" height="18" rx="3" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
+  <text x="16" y="20" font-size="8" fill="${t.accent}" font-family="JetBrains Mono, monospace" font-weight="700">GROUP A</text>
+  <rect x="172" y="11" width="92" height="12" rx="3" fill="${t.green}22" stroke="${t.green}66" stroke-width="1"/>
+  <text x="218" y="20" font-size="8" fill="${t.green}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="700">+ Reference</text>
+  <rect x="8" y="30" width="264" height="42" rx="3" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
+  <path d="M20 58 C60 58 80 36 115 36 C148 36 165 56 264 51" stroke="${t.accent}" stroke-width="1.5" fill="none"/>
+  <line x1="20" y1="47" x2="264" y2="47" stroke="${t.warn}" stroke-width="1" stroke-dasharray="4 3"/>
+  <rect x="20" y="41" width="244" height="9" rx="1" fill="${t.warn}" opacity="0.10"/>
+  <line x1="140" y1="32" x2="140" y2="70" stroke="${t.accent}" stroke-width="1" stroke-dasharray="3 2" opacity="0.75"/>
+  <rect x="185" y="32" width="22" height="38" rx="1" fill="${t.green}" opacity="0.12"/>
+  <line x1="185" y1="32" x2="185" y2="70" stroke="${t.green}" stroke-width="1" opacity="0.65"/>
+  <line x1="207" y1="32" x2="207" y2="70" stroke="${t.green}" stroke-width="1" opacity="0.65"/>
+</svg>`,
     },
 
     /* 12 — References — Configuring */
@@ -296,7 +300,7 @@ export function buildSteps(t) {
     {
       target: '#tab-meta',
       title: 'Meta Tab',
-      desc: 'The Meta tab shows all metadata loaded from the CSV header — trend name, scan class, date/time, and per-signal units and descriptions. You can edit display names and units directly in this tab.',
+      desc: 'The Meta tab is where you customize how signals are presented — edit display names, set units, and add descriptions for any tag. Changes apply immediately across the chart panes.',
       prefer: 'right',
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="10" y="8" width="260" height="64" rx="5" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
