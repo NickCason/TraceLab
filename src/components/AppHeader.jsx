@@ -22,7 +22,21 @@ export default function AppHeader({
           <span style={{ color: t.text3 }}>Lab</span>
         </div>
         <div style={{ width: 1, height: 22, background: t.border }} />
-        <div style={{ fontSize: 13, color: t.text2, fontFamily: FONT_DISPLAY, fontWeight: 500 }}>{data.meta.trendName || "Untitled"}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: t.text1, fontFamily: FONT_DISPLAY }}>
+            {data.meta.projectFile || data.meta.sourceFile || data.meta.trendName || "Untitled"}
+          </div>
+          {(() => {
+            const subtext = data.meta.projectFile
+              ? data.meta.sourceFile
+              : data.meta.addedSourceFiles?.length
+                ? `+ ${data.meta.addedSourceFiles.join(", ")}`
+                : data.meta.trendName;
+            return subtext
+              ? <div style={{ fontSize: 11, color: t.text3, fontFamily: FONT_MONO }}>{subtext}</div>
+              : null;
+          })()}
+        </div>
         <div style={{ fontSize: 12, color: t.text3, fontFamily: FONT_MONO }}>{data.signals.length} tags · {data.timestamps.length.toLocaleString()} samples · {data.meta.samplePeriod}{data.meta.sampleUnit}</div>
         {rebaseOffset !== 0 && (
           <div style={{ fontSize: 12, color: t.warn, fontWeight: 700, letterSpacing: 1, padding: "2px 8px", borderRadius: 6, background: `${t.warn}18`, border: `1px solid ${t.warn}33`, fontFamily: FONT_DISPLAY }}>REBASED</div>
@@ -34,7 +48,7 @@ export default function AppHeader({
         )}
         {importMode === "comparison" && (
           <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.green, fontWeight: 700, letterSpacing: 1, padding: "2px 8px", borderRadius: 6, background: `${t.green}18`, border: `1px solid ${t.green}33`, fontFamily: FONT_DISPLAY }}>
-            COMPARISON
+            COMPARISON{comparisonData?.meta?.sourceFile ? ` · ${comparisonData.meta.sourceFile}` : ""}
             <span
               onClick={() => { setImportMode(null); setComparisonData(null); setComparisonState(null); setActiveSidebarDataset("primary"); }}
               title="Exit comparison mode"
