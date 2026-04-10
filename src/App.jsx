@@ -22,6 +22,7 @@ import { buildProjectPayload, classifyDroppedFile, hydrateProjectData, normalize
 import { applyLoadedDataset, createComparisonState } from "./utils/sessionState";
 import { buildChartPanes } from "./utils/buildChartPanes";
 import ImportDialog from "./components/ImportDialog";
+import TutorialOverlay from "./components/tutorial/TutorialOverlay";
 
 const SIGNAL_TOKEN_PATTERN = /\bs(\d+)\b/g;
 
@@ -131,6 +132,7 @@ export default function App() {
   const [comparisonData, setComparisonData] = useState(null);   // second dataset for comparison mode
   const [comparisonState, setComparisonState] = useState(null); // independent state bundle for comparison chart
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [activeSidebarDataset, setActiveSidebarDataset] = useState("primary");
   const fileInputRef = useRef(null);
   const projectInputRef = useRef(null);
@@ -739,6 +741,22 @@ export default function App() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <ThemeToggle theme={theme} setTheme={setTheme} />
+          <button
+            id="btn-tutorial"
+            onClick={() => setTutorialOpen(true)}
+            title="Open tutorial"
+            style={{
+              width: 26, height: 26, borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontFamily: FONT_MONO, fontWeight: 700, fontSize: 13,
+              padding: 0, flexShrink: 0,
+              color: t.accent, background: "transparent",
+              border: `1.5px solid ${t.accentBorder}`,
+              cursor: "pointer", transition: "all 0.15s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = t.accentDim; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+          >?</button>
           <div style={{ width: 1, height: 22, background: t.border, marginLeft: 4, marginRight: 4 }} />
           <ToolBtn id="btn-delta" onClick={() => { setDeltaMode(!deltaMode); setCursorIdx(null); setCursor2Idx(null); setDeltaLocked(false); }} active={deltaMode} activeColor={t.cursor2} t={t}>Δ Delta</ToolBtn>
           <ToolBtn onClick={() => setShowPills(!showPills)} active={showPills} activeColor={t.green} t={t} title="Toggle cursor value pills">Pills</ToolBtn>
@@ -1162,6 +1180,13 @@ export default function App() {
         onImportUnified={handleUnifiedImport}
         onImportComparison={handleComparisonImport}
       />}
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        open={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        t={t}
+        theme={theme}
+      />
     </div>
   );
 }
