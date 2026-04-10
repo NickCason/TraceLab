@@ -115,7 +115,7 @@ export function buildSteps(t) {
 
     /* 6 — Edge Values & Peaks */
     {
-      target: '#btn-edges',
+      targets: ['#btn-edges', '#chart-pane-0'],
       title: 'Edge Values & Peaks',
       desc: 'Edges shows the signal value at the left and right edges of the current view — useful when signals enter or exit the visible range. Peaks marks the per-signal min and max within the current view.',
       prefer: 'bottom',

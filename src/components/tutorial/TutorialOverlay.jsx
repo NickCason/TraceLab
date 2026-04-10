@@ -116,10 +116,11 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const steps = useMemo(() => buildSteps(t), [theme]);
 
-  const backdropRef = useRef(null);
-  const pulseRef    = useRef(null);
-  const cardRef     = useRef(null);
-  const arrowRef    = useRef(null);
+  const backdropRef  = useRef(null);
+  const backdropRef2 = useRef(null);
+  const pulseRef     = useRef(null);
+  const cardRef      = useRef(null);
+  const arrowRef     = useRef(null);
   const exitBtnRef  = useRef(null);
 
   // Reset step to 0 every time the overlay opens
@@ -167,10 +168,25 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
     if (!open) return;
     const position = () => {
       const s = steps[step];
-      const rect = getTargetRect(s?.target);
-      positionBackdrop(backdropRef.current, rect);
-      positionPulse(pulseRef.current, rect, t.accent);
-      positionCard(cardRef.current, arrowRef.current, s, rect);
+      const selectors = s.targets ? s.targets : (s.target ? [s.target] : []);
+      const primaryRect   = selectors[0] ? getTargetRect(selectors[0]) : null;
+      const secondaryRect = selectors[1] ? getTargetRect(selectors[1]) : null;
+
+      positionBackdrop(backdropRef.current, primaryRect);
+      positionPulse(pulseRef.current, primaryRect, t.accent);
+      positionCard(cardRef.current, arrowRef.current, s, primaryRect);
+
+      if (backdropRef2.current) {
+        if (secondaryRect) {
+          backdropRef2.current.style.display = "";
+          backdropRef2.current.style.top    = `${secondaryRect.top  - PAD}px`;
+          backdropRef2.current.style.left   = `${secondaryRect.left - PAD}px`;
+          backdropRef2.current.style.width  = `${secondaryRect.width  + PAD * 2}px`;
+          backdropRef2.current.style.height = `${secondaryRect.height + PAD * 2}px`;
+        } else {
+          backdropRef2.current.style.display = "none";
+        }
+      }
     };
     position();
     const raf = requestAnimationFrame(position);
@@ -221,8 +237,10 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
         if (!currentStep.allowInteract && e.target === e.currentTarget) setConfirming(true);
       }}
     >
-      {/* Spotlight backdrop */}
+      {/* Primary spotlight */}
       <div className="tutorial-backdrop" ref={backdropRef} />
+      {/* Secondary spotlight (multi-target steps) */}
+      <div className="tutorial-backdrop secondary-highlight" ref={backdropRef2} style={{ display: "none" }} />
 
       {/* Pulse ring around target */}
       <div className="tutorial-pulse" ref={pulseRef} style={{ display: "none" }} />
