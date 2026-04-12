@@ -66,4 +66,10 @@ describe('ChartPane', () => {
   it('renders without throwing when signalEntries is empty', () => {
     expect(() => render(<ChartPane {...mkProps({ signalEntries: [] })} />)).not.toThrow();
   });
+
+  it('calls getContext on the canvas element after mount', () => {
+    render(<ChartPane {...mkProps()} />);
+    expect(HTMLCanvasElement.prototype.getContext).toHaveBeenCalled();
+    expect(HTMLCanvasElement.prototype.getContext).toHaveBeenCalledWith('2d');
+  });
 });

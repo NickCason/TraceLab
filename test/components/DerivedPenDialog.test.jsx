@@ -58,4 +58,35 @@ describe('DerivedPenDialog', () => {
     const { container } = render(<DerivedPenDialog {...mkProps({ mode: 'edit' })} />);
     expect(container.textContent).toContain('Edit Derived Pen');
   });
+
+  it('does not call onCreate when expression is empty', () => {
+    const onCreate = vi.fn();
+    const { container } = render(<DerivedPenDialog {...mkProps({ onCreate })} />);
+    const textarea = container.querySelector('textarea');
+    fireEvent.change(textarea, { target: { value: '' } });
+    const createBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'Create Derived');
+    fireEvent.click(createBtn);
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it('shows window range slider when type is rolling_avg', () => {
+    const { container } = render(<DerivedPenDialog {...mkProps()} />);
+    const typeSelect = container.querySelector('select');
+    fireEvent.change(typeSelect, { target: { value: 'rolling_avg' } });
+    const rangeInput = container.querySelector('input[type="range"]');
+    expect(rangeInput).toBeTruthy();
+  });
+
+  it('inserts variable token into expression when token button is clicked', () => {
+    const { container } = render(<DerivedPenDialog {...mkProps()} />);
+    // Token buttons appear in the Variables section; find the first one (s0)
+    const tokenButtons = Array.from(container.querySelectorAll('button')).filter(b => /^s\d+$/.test(b.textContent.trim()));
+    expect(tokenButtons.length).toBeGreaterThan(0);
+    const textarea = container.querySelector('textarea');
+    const before = textarea.value;
+    fireEvent.click(tokenButtons[0]);
+    // After click, expression should contain the appended token
+    expect(textarea.value).toContain(tokenButtons[0].textContent.trim());
+    expect(textarea.value.length).toBeGreaterThan(before.length);
+  });
 });

@@ -52,4 +52,31 @@ describe('ImportDialog', () => {
     expect(container.textContent).toContain('Unified');
     expect(container.textContent).toContain('Comparison');
   });
+
+  it('clicking Comparison mode card changes selection to comparison', () => {
+    const { container } = render(<ImportDialog {...mkProps()} />);
+    // Find all clickable divs that contain mode labels; click the one with "Comparison"
+    const allDivs = Array.from(container.querySelectorAll('div'));
+    const comparisonCard = allDivs.find(d =>
+      d.textContent.includes('Comparison') &&
+      d.textContent.includes('Side-by-side')
+    );
+    expect(comparisonCard).toBeTruthy();
+    fireEvent.click(comparisonCard);
+    // After selecting Comparison, the card label div should have different color styling
+    // We verify by checking that a div with "Unified" text and "Side-by-side" no longer has
+    // the accent color, and Comparison card border reflects selection.
+    // Simplest: re-query; the Comparison card should now show accent color text.
+    const labelDiv = Array.from(container.querySelectorAll('div')).find(d =>
+      d.textContent === 'Comparison' && d.style.color !== ''
+    );
+    // The mode changed — Comparison card label color becomes t.green (non-default text1)
+    expect(labelDiv).toBeTruthy();
+  });
+
+  it('Back button is not shown on the initial select step', () => {
+    const { container } = render(<ImportDialog {...mkProps()} />);
+    const backBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'Back');
+    expect(backBtn).toBeUndefined();
+  });
 });
