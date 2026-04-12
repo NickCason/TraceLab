@@ -63,6 +63,14 @@ describe('useChartPanes', () => {
     expect(result.current.globalEdgeLabelWidth).toBe(0);
   });
 
+  it('globalLeftEdgeLabelWidth is 0 when showEdgeValues is false', () => {
+    const signalState = { ...mkSignalState(2), showEdgeValues: false };
+    const { result } = renderHook(() =>
+      useChartPanes(mkData(2), signalState, mkFileIO(), 'dark', THEMES.dark)
+    );
+    expect(result.current.globalLeftEdgeLabelWidth).toBe(0);
+  });
+
   it('each pane has an entries array and a groupIdx', () => {
     const data = mkData(4);
     const signalState = mkSignalState(4);

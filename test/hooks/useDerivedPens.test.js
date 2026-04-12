@@ -86,7 +86,7 @@ describe('useDerivedPens', () => {
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('added'), 'success');
   });
 
-  it('deleteDerivedPen calls setData and removes config entry', () => {
+  it('deleteDerivedPen is a no-op when signal at index is not derived', () => {
     const data = mkData();
     const setData = vi.fn();
     const signalState = mkSignalState();
@@ -105,5 +105,34 @@ describe('useDerivedPens', () => {
     });
 
     expect(setData).not.toHaveBeenCalled();
+  });
+
+  it('deleteDerivedPen calls setData when signal at index is derived', () => {
+    const baseData = mkData();
+    const derivedSignal = {
+      values: Array.from({ length: 20 }, (_, i) => i),
+      isDigital: false,
+      isDerived: true,
+    };
+    const data = {
+      ...baseData,
+      signals: [...baseData.signals, derivedSignal],
+      tagNames: [...baseData.tagNames, 'MyDerived'],
+    };
+    const setData = vi.fn();
+    const signalState = mkSignalState();
+
+    const { result } = renderHook(() =>
+      useDerivedPens(data, setData, signalState, gc, vi.fn())
+    );
+
+    act(() => {
+      result.current.deleteDerivedPen(2);
+    });
+
+    expect(setData).toHaveBeenCalledOnce();
+    const newData = setData.mock.calls[0][0];
+    expect(newData.signals.length).toBe(2);
+    expect(newData.tagNames.includes('MyDerived')).toBe(false);
   });
 });
