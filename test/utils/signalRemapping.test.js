@@ -95,6 +95,11 @@ test('remapDerivedConfig equation remaps expression tokens', () => {
   expect(result.expression).toBe('s1 - s0');
 });
 
+test('remapDerivedConfig sum remaps both sources like difference', () => {
+  const result = remapDerivedConfig({ type: 'sum', sources: [2, 4] }, 1);
+  expect(result.sources).toEqual([1, 3]);
+});
+
 test('remapDerivedConfig returns cfg unchanged for unknown type', () => {
   const cfg = { type: 'unknown_future_type', foo: 'bar' };
   expect(remapDerivedConfig(cfg, 1)).toEqual(cfg);
@@ -125,6 +130,13 @@ test('resolveSignalSeam returns active true for non-zero offset', () => {
   const result = resolveSignalSeam({ seamOffsetPct: 25 }, values);
   expect(result.active).toBe(true);
   expect(result.percent).toBe(25);
+});
+
+test('resolveSignalSeam falls back to seamOffset when seamOffsetPct is absent', () => {
+  const values = Array.from({ length: 360 }, (_, i) => i);
+  const result = resolveSignalSeam({ seamOffset: 90 }, values);
+  expect(result.percent).toBeCloseTo(50, 0);
+  expect(result.active).toBe(true);
 });
 
 // ── shiftSeriesBackward ───────────────────────────────────────────────────────
