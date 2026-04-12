@@ -136,4 +136,70 @@ describe('useFileIO', () => {
     expect(dropEvent.preventDefault).toHaveBeenCalled();
     expect(setData).toHaveBeenCalled();
   });
+
+  it('handleComparisonImport sets comparisonData and shows success toast', () => {
+    reader = makeFileReader();
+    const { result } = renderHook(() =>
+      useFileIO(null, setData, signalState, derivedPens, setReferenceOverlays, showToast)
+    );
+
+    const newData = mkParsedData();
+
+    act(() => {
+      result.current.handleComparisonImport(newData);
+    });
+
+    expect(result.current.comparisonData).toEqual(newData);
+    expect(showToast).toHaveBeenCalledWith(
+      expect.stringMatching(/[Cc]omparison/),
+      'success'
+    );
+  });
+
+  it('applyRebase shows error toast when rebaseInput is an invalid date', () => {
+    reader = makeFileReader();
+    const data = {
+      timestamps: [1700000000000, 1700000005000],
+      signals: [],
+      tagNames: [],
+      meta: {},
+    };
+    const { result } = renderHook(() =>
+      useFileIO(data, setData, signalState, derivedPens, setReferenceOverlays, showToast)
+    );
+
+    act(() => {
+      result.current.setRebaseInput('not-a-date');
+    });
+
+    act(() => {
+      result.current.applyRebase();
+    });
+
+    expect(showToast).toHaveBeenCalledWith('Invalid date format', 'error');
+  });
+
+  it('clearRebase resets rebaseOffset to 0 and shows info toast', () => {
+    reader = makeFileReader();
+    const data = mkParsedData();
+    const { result } = renderHook(() =>
+      useFileIO(data, setData, signalState, derivedPens, setReferenceOverlays, showToast)
+    );
+
+    act(() => {
+      result.current.setRebaseOffset(5000);
+    });
+
+    expect(result.current.rebaseOffset).toBe(5000);
+
+    act(() => {
+      result.current.clearRebase();
+    });
+
+    expect(result.current.rebaseOffset).toBe(0);
+    expect(showToast).toHaveBeenCalledWith(
+      'Rebase cleared — original timestamps restored',
+      'info'
+    );
+  });
 });
