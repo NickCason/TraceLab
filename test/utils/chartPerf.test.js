@@ -55,8 +55,8 @@ test('downsampling preserves extrema and bypasses for small windows', () => {
   values[1234] = -9;
 
   const decimated = buildDecimatedIndices(values, 0, values.length, 120);
-  expect(decimated.includes(750)).toBeTruthy();
-  expect(decimated.includes(1234)).toBeTruthy();
+  expect(decimated).toContain(750);
+  expect(decimated).toContain(1234);
 
   const small = buildDecimatedIndices(values, 10, 40, 50);
   expect(small).toEqual(Array.from({ length: 30 }, (_, i) => i + 10));

@@ -61,7 +61,7 @@ test('downloadBlob creates temporary anchor, prunes old blob URLs, and schedules
   scheduled[1].fn();
 
   expect(removed.length).toBe(1);
-  expect(revoked.includes('blob:url-1')).toBeTruthy();
+  expect(revoked).toContain('blob:url-1');
   expect(_blobUrls.includes('blob:url-1')).toBe(false);
 
   _blobUrls.splice(0, _blobUrls.length);

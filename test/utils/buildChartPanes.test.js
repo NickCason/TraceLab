@@ -71,7 +71,7 @@ test('cyclic signal with no manual seam offset produces a non-null seam entry', 
 
   expect(panes.length).toBe(1);
   const entry = panes[0].entries[0];
-  expect(entry.seam).not.toBe(null);
-  expect(entry.seam.span).toBe(360);
-  expect(entry.seam.offset).toBe(0);
+  expect(entry.seam, 'seam must not be null for a cyclic signal').not.toBe(null);
+  expect(entry.seam.span, 'span should be 360 for an angular signal').toBe(360);
+  expect(entry.seam.offset, 'offset should be 0 when no manual seam is configured').toBe(0);
 });

@@ -32,21 +32,21 @@ test('detects forward rollover and returns delta + count', () => {
   const result = computeUnrolledDelta(makeEntry([350, 10], 360), 0, 1);
   expect(result).not.toBe(null);
   expect(result.rollovers).toBe(1);
-  expect(Math.abs(result.delta - 20) < 1e-9).toBeTruthy();
+  expect(Math.abs(result.delta - 20) < 1e-9, `expected delta ~20, got ${result.delta}`).toBe(true);
 });
 
 test('detects backward rollover', () => {
   const result = computeUnrolledDelta(makeEntry([10, 350], 360), 0, 1);
   expect(result).not.toBe(null);
   expect(result.rollovers).toBe(1);
-  expect(Math.abs(result.delta - (-20)) < 1e-9).toBeTruthy();
+  expect(Math.abs(result.delta - (-20)) < 1e-9, `expected delta ~-20, got ${result.delta}`).toBe(true);
 });
 
 test('works in reverse direction (idxB < idxA)', () => {
   const result = computeUnrolledDelta(makeEntry([350, 10], 360), 1, 0);
   expect(result).not.toBe(null);
   expect(result.rollovers).toBe(1);
-  expect(Math.abs(result.delta - (-20)) < 1e-9).toBeTruthy();
+  expect(Math.abs(result.delta - (-20)) < 1e-9).toBe(true);
 });
 
 test('skips null and NaN values mid-sequence', () => {

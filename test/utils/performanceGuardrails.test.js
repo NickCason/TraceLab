@@ -50,16 +50,16 @@ test('benchmark fixtures: small/medium/large pane build baselines', () => {
 
   fixtures.forEach(({ name, data, budgetMs }) => {
     const { ms, panes } = timedBuild(buildArgs(data));
-    expect(panes.length > 0).toBeTruthy();
-    expect(ms < budgetMs).toBeTruthy();
+    expect(panes.length > 0, `${name} should emit panes`).toBe(true);
+    expect(ms < budgetMs, `${name} baseline exceeded budget (${ms.toFixed(2)}ms >= ${budgetMs}ms)`).toBe(true);
   });
 });
 
 test('regression guardrail: many visible signals over large window', () => {
   const large = makeDataset(120, 12000);
   const result = timedBuild(buildArgs(large));
-  expect(result.panes.length >= 4).toBeTruthy();
-  expect(result.ms < 2500).toBeTruthy();
+  expect(result.panes.length >= 4).toBe(true);
+  expect(result.ms < 2500, `many-signal build too slow: ${result.ms.toFixed(2)}ms`).toBe(true);
 });
 
 test('comparison-mode path reuses shared pane builder performance characteristics', () => {
@@ -88,10 +88,10 @@ test('comparison-mode path reuses shared pane builder performance characteristic
   const p = { ms: primaryTotal / runs, panes: timedBuild(primaryArgs).panes };
   const c = { ms: comparisonTotal / runs, panes: timedBuild(comparisonArgs).panes };
 
-  expect(p.panes.length > 0 && c.panes.length > 0).toBeTruthy();
+  expect(p.panes.length > 0 && c.panes.length > 0).toBe(true);
   const slower = Math.max(p.ms, c.ms);
   const faster = Math.max(1, Math.min(p.ms, c.ms));
-  expect(slower / faster < 1.75).toBeTruthy();
+  expect(slower / faster < 1.75, `comparison path regressed: primary=${p.ms.toFixed(1)}ms comparison=${c.ms.toFixed(1)}ms`).toBe(true);
 });
 
 test('moving-average memoization improves repeated pane builds', () => {
@@ -100,5 +100,5 @@ test('moving-average memoization improves repeated pane builds', () => {
   const cold = timedBuild(args, 1).ms;
   const warm = timedBuild(args, 3).ms / 3;
 
-  expect(warm <= cold * 1.15).toBeTruthy();
+  expect(warm <= cold * 1.15, `expected warm cache <= cold; cold=${cold.toFixed(2)}ms warm=${warm.toFixed(2)}ms`).toBe(true);
 });
