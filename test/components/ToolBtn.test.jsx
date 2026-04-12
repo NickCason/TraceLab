@@ -17,7 +17,7 @@ describe('ToolBtn', () => {
       <ToolBtn t={t} active={true} activeColor="#00ff00" onClick={vi.fn()}>Btn</ToolBtn>
     );
     const btn = container.querySelector('button');
-    expect(btn.style.background).toContain('#00ff00');
+    expect(btn.style.color).toBe('#00ff00');
   });
 
   it('calls onClick when clicked', () => {
