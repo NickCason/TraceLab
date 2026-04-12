@@ -79,4 +79,33 @@ describe('GroupPanel', () => {
     fireEvent.dragOver(dropTarget, { dataTransfer: { dropEffect: 'move' } });
     expect(container.textContent).toContain('Drop here');
   });
+
+  it('double-clicking the group label enters rename/edit mode', () => {
+    const { container } = render(<GroupPanel {...mkProps()} />);
+    // Find the label div that has the double-click handler (title="Double-click to rename")
+    const labelDiv = container.querySelector('[title="Double-click to rename"]');
+    expect(labelDiv).toBeTruthy();
+    fireEvent.dblClick(labelDiv);
+    // After double-click, an input should appear for renaming
+    const input = container.querySelector('input[type="text"], input:not([type])');
+    expect(input).toBeTruthy();
+    // The input should have a value matching the group label
+    expect(input.value).toBe('Group A');
+  });
+
+  it('pressing Enter in the rename input commits the name via onSetGroupName', () => {
+    const onSetGroupName = vi.fn();
+    const { container } = render(<GroupPanel {...mkProps({ onSetGroupName })} />);
+    // Enter edit mode via double-click
+    const labelDiv = container.querySelector('[title="Double-click to rename"]');
+    fireEvent.dblClick(labelDiv);
+    const input = container.querySelector('input:not([type="checkbox"]):not([type="number"]):not([type="range"])');
+    expect(input).toBeTruthy();
+    // Change the value to a new name
+    fireEvent.change(input, { target: { value: 'My Group' } });
+    // Press Enter to commit
+    fireEvent.keyDown(input, { key: 'Enter' });
+    // onSetGroupName should be called with the groupIdx and the new name
+    expect(onSetGroupName).toHaveBeenCalledWith(1, 'My Group');
+  });
 });

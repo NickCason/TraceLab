@@ -76,4 +76,48 @@ describe('ExportPanel', () => {
     const exportBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'EXPORT CSV');
     expect(exportBtn.disabled).toBe(false);
   });
+
+  it('toggling an individual pen deselects it but export stays enabled', () => {
+    const { container } = render(<ExportPanel {...mkProps()} />);
+    // Find the first signal row (contains Tag0 display name)
+    const tag0Row = Array.from(container.querySelectorAll('div')).find(
+      el => el.textContent === 'Tag0' && el.tagName === 'DIV'
+    );
+    // The clickable row is the parent div wrapping the checkbox + label
+    const clickableRow = tag0Row.parentElement;
+    fireEvent.click(clickableRow);
+    // Export button should still be enabled because Tag1 and Tag2 remain selected
+    const exportBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'EXPORT CSV');
+    expect(exportBtn.disabled).toBe(false);
+  });
+
+  it('clicking SHOW PREVIEW renders preview content', () => {
+    const { container } = render(<ExportPanel {...mkProps()} />);
+    const previewBtn = Array.from(container.querySelectorAll('button')).find(
+      b => b.textContent === 'SHOW PREVIEW'
+    );
+    expect(previewBtn).toBeTruthy();
+    fireEvent.click(previewBtn);
+    // After clicking, preview content with TraceLab header comment should appear
+    expect(container.textContent).toContain('# TraceLab Export');
+    // The button label should now say HIDE PREVIEW
+    const hideBtn = Array.from(container.querySelectorAll('button')).find(
+      b => b.textContent === 'HIDE PREVIEW'
+    );
+    expect(hideBtn).toBeTruthy();
+  });
+
+  it('sample rate buttons change the rate display', () => {
+    const { container } = render(<ExportPanel {...mkProps()} />);
+    // basePeriod=5, baseUnit='ms', so 2x multiplier button is labeled '10ms'
+    const rateBtn = Array.from(container.querySelectorAll('button')).find(
+      b => b.textContent === '10ms'
+    );
+    expect(rateBtn).toBeTruthy();
+    fireEvent.click(rateBtn);
+    // The rate info section should now show '10 ms' in the summary stats
+    expect(container.textContent).toContain('10 ms');
+    // The decimation message should appear (2nd sample)
+    expect(container.textContent).toContain('Every 2nd sample');
+  });
 });
