@@ -1,5 +1,5 @@
 // test/hooks/useFileIO.test.js
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFileIO } from '../../src/hooks/useFileIO.js';
 import { makeFile, makeFileReader, makeDropEvent } from '../setup/mockFileIO.js';
@@ -70,6 +70,7 @@ const mkReset = () => ({
 
 describe('useFileIO', () => {
   let setData, signalState, derivedPens, setReferenceOverlays, showToast;
+  let reader, OriginalFileReader;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,16 +82,21 @@ describe('useFileIO', () => {
 
     parseStudio5000CSV.mockReturnValue(mkParsedData());
     applyLoadedDataset.mockReturnValue(mkReset());
+
+    // Install FileReader mock with lazy factory pattern (uses closure)
+    OriginalFileReader = globalThis.FileReader;
+    globalThis.FileReader = function FileReader() { return reader; };
+  });
+
+  afterEach(() => {
+    globalThis.FileReader = OriginalFileReader;
   });
 
   it('handleFile calls setData with parsed CSV', () => {
+    reader = makeFileReader();
     const { result } = renderHook(() =>
       useFileIO(null, setData, signalState, derivedPens, setReferenceOverlays, showToast)
     );
-
-    const reader = makeFileReader();
-    const OriginalFileReader = globalThis.FileReader;
-    globalThis.FileReader = function FileReader() { return reader; };
 
     act(() => {
       result.current.handleFile(makeFile('test.csv', 'csv-content'));
@@ -99,30 +105,24 @@ describe('useFileIO', () => {
 
     expect(setData).toHaveBeenCalledWith(expect.objectContaining({ tagNames: ['Tag0', 'Tag1'] }));
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('2 tags'), 'success');
-
-    globalThis.FileReader = OriginalFileReader;
   });
 
   it('handleFile calls showToast with error when CSV cannot be parsed', () => {
     parseStudio5000CSV.mockReturnValue(null);
+    reader = makeFileReader();
     const { result } = renderHook(() =>
       useFileIO(null, setData, signalState, derivedPens, setReferenceOverlays, showToast)
     );
-
-    const reader = makeFileReader();
-    const OriginalFileReader = globalThis.FileReader;
-    globalThis.FileReader = function FileReader() { return reader; };
 
     act(() => { result.current.handleFile(makeFile('bad.csv', 'garbage')); });
     reader.triggerLoad('garbage');
 
     expect(showToast).toHaveBeenCalledWith('Failed to parse CSV — unsupported format', 'error');
-
-    globalThis.FileReader = OriginalFileReader;
   });
 
   it('handleDrop routes csv files to handleFile via classifyDroppedFile', () => {
     classifyDroppedFile.mockReturnValue('csv');
+    reader = makeFileReader();
     const { result } = renderHook(() =>
       useFileIO(null, setData, signalState, derivedPens, setReferenceOverlays, showToast)
     );
@@ -130,16 +130,10 @@ describe('useFileIO', () => {
     const file = makeFile('data.csv', 'csv-content');
     const dropEvent = makeDropEvent([file]);
 
-    const reader = makeFileReader();
-    const OriginalFileReader = globalThis.FileReader;
-    globalThis.FileReader = function FileReader() { return reader; };
-
     act(() => { result.current.handleDrop(dropEvent); });
     reader.triggerLoad('csv-content');
 
     expect(dropEvent.preventDefault).toHaveBeenCalled();
     expect(setData).toHaveBeenCalled();
-
-    globalThis.FileReader = OriginalFileReader;
   });
 });
