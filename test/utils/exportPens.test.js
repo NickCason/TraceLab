@@ -40,6 +40,13 @@ describe('resolveExportWindow — branch coverage', () => {
     expect(result.reason).toContain('empty');
   });
 
+  it('returns ok: false when view start equals view end (zero-width range)', () => {
+    const timestamps = [0, 1, 2, 3, 4];
+    const result = resolveExportWindow(timestamps, [2, 2], 'view');
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain('empty');
+  });
+
   it('clamps out-of-bounds view start to 0', () => {
     const timestamps = [0, 1, 2, 3, 4];
     const result = resolveExportWindow(timestamps, [-5, 3], 'view');

@@ -1,4 +1,4 @@
-import { test, expect, describe, it, vi } from 'vitest';
+import { test, expect, describe, it } from 'vitest';
 import { normalizeEquationExpression, buildEquationEvaluator } from '../../src/utils/derivedEquation.js';
 
 test('normalizeEquationExpression rewrites signal tokens for evaluator', () => {
@@ -39,12 +39,12 @@ describe('buildEquationEvaluator — error paths', () => {
   it('returns null when getAt returns null for a missing signal reference', () => {
     // null from getAt propagates through the evaluator
     const evaluate = buildEquationEvaluator('s99');
-    const getAt = vi.fn(() => null);
+    const getAt = () => null;
     const result = evaluate(0, getAt);
     expect(result).toBeNull();
   });
 
-  it('division by zero returns null (guarded by implementation)', () => {
+  it('division by zero returns null', () => {
     const evaluate = buildEquationEvaluator('s0 / s1');
     const getAt = (_sigIdx, _sampleIdx) => _sigIdx === 0 ? 10 : 0;
     const result = evaluate(0, getAt);
