@@ -137,7 +137,20 @@ describe('useDerivedPens', () => {
   });
 
   it('updateDerivedPen modifies config and calls setData with updated signal', () => {
-    const data = mkData();
+    // Pre-populate data with a derived signal at index 2 so the hook closure
+    // sees the derived signal without any stale-closure issue from createDerivedPen.
+    const baseData = mkData();
+    const derivedSignal = {
+      values: Array.from({ length: 20 }, (_, i) => i * 5),
+      isDigital: false,
+      isDerived: true,
+      derivedType: 'equation',
+    };
+    const data = {
+      ...baseData,
+      signals: [...baseData.signals, derivedSignal],
+      tagNames: [...baseData.tagNames, 'Original Name'],
+    };
     const setData = vi.fn();
     const showToast = vi.fn();
     const signalState = mkSignalState();
@@ -146,16 +159,15 @@ describe('useDerivedPens', () => {
       useDerivedPens(data, setData, signalState, gc, showToast)
     );
 
-    // create a pen first
+    // Prime derivedConfigs state so updateDerivedPen's guard passes for index 2.
     act(() => {
-      result.current.createDerivedPen({ type: 'equation', expression: 's0 + s1', groupIdx: 1 });
+      result.current.setDerivedConfigs({ 2: { type: 'equation', expression: 's0 + s1', groupIdx: 1 } });
     });
-    const createdIdx = data.signals.length; // index of the new derived signal
-    setData.mockClear();
 
-    // now update it
+    // Now call updateDerivedPen — the hook's data closure still holds the
+    // pre-populated data object with the derived signal at index 2.
     act(() => {
-      result.current.updateDerivedPen(createdIdx, {
+      result.current.updateDerivedPen(2, {
         type: 'equation',
         expression: 's0 - s1',
         name: 'My Updated Pen',
@@ -165,6 +177,8 @@ describe('useDerivedPens', () => {
 
     expect(showToast).toHaveBeenCalledWith('Derived pen updated', 'success');
     expect(setData).toHaveBeenCalledOnce();
+    const newData = setData.mock.calls[0][0];
+    expect(newData.tagNames[2]).toBe('My Updated Pen');
   });
 
   it('deleteDerivedPen removes derived signal and calls showToast', () => {
