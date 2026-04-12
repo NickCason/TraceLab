@@ -6,7 +6,7 @@ import ChartPane from '../../src/components/ChartPane.jsx';
 
 let ctx;
 beforeEach(() => { ctx = installCanvasMock(); });
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { ctx._restore(); vi.restoreAllMocks(); });
 
 const mkSignalEntries = () => [
   {

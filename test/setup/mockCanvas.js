@@ -38,6 +38,8 @@ export function createMockCtx() {
 
 export function installCanvasMock() {
   const ctx = createMockCtx();
+  const original = HTMLCanvasElement.prototype.getContext;
   HTMLCanvasElement.prototype.getContext = vi.fn(() => ctx);
+  ctx._restore = () => { HTMLCanvasElement.prototype.getContext = original; };
   return ctx;
 }

@@ -7,7 +7,7 @@ import { THEMES } from '../../src/constants/theme.js';
 
 let ctx;
 beforeEach(() => { ctx = installCanvasMock(); });
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { ctx._restore(); vi.restoreAllMocks(); });
 
 const mkData = () => ({
   timestamps: Array.from({ length: 10 }, (_, i) => 1700000000000 + i * 5),
