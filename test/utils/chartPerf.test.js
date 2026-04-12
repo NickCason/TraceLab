@@ -1,4 +1,4 @@
-import { test, expect, describe, it, vi } from 'vitest';
+import { test, expect, describe, it, vi, afterEach } from 'vitest';
 
 import {
   buildMovingAverageCached,
@@ -64,11 +64,15 @@ test('downsampling preserves extrema and bypasses for small windows', () => {
 });
 
 describe('profilePerf — branch coverage', () => {
+  afterEach(() => {
+    delete globalThis.__TRACE_PERF_ENABLED__;
+    delete globalThis.__TRACE_PERF_SINK__;
+  });
+
   it('returns function result directly when perf is not enabled', () => {
     globalThis.__TRACE_PERF_ENABLED__ = false;
     const result = profilePerf('test', () => 42);
     expect(result).toBe(42);
-    delete globalThis.__TRACE_PERF_ENABLED__;
   });
 
   it('calls custom perf sink when enabled', () => {
@@ -77,8 +81,6 @@ describe('profilePerf — branch coverage', () => {
     globalThis.__TRACE_PERF_SINK__ = sink;
     profilePerf('my-label', () => 'value');
     expect(sink).toHaveBeenCalledWith(expect.objectContaining({ label: 'my-label' }));
-    delete globalThis.__TRACE_PERF_ENABLED__;
-    delete globalThis.__TRACE_PERF_SINK__;
   });
 
   it('still returns function result when perf is enabled', () => {
@@ -86,8 +88,6 @@ describe('profilePerf — branch coverage', () => {
     globalThis.__TRACE_PERF_SINK__ = vi.fn();
     const result = profilePerf('label', () => 99);
     expect(result).toBe(99);
-    delete globalThis.__TRACE_PERF_ENABLED__;
-    delete globalThis.__TRACE_PERF_SINK__;
   });
 });
 
@@ -96,7 +96,7 @@ describe('buildMovingAverageCached — branch coverage', () => {
     const vals = [1, 2, 3];
     const result = buildMovingAverageCached(vals, 0);
     expect(result).toEqual([1, 2, 3]);
-    // Should be a different reference (copy), not the original
+    // windowSize <= 0 hits the early-exit bypass, returning a copy (not the original ref)
     expect(result).not.toBe(vals);
   });
 
