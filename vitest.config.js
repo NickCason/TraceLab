@@ -10,8 +10,8 @@ export default defineConfig({
     include: ['test/**/*.test.js', 'test/**/*.test.jsx'],
     coverage: {
       provider: 'v8',
-      include: ['src/utils/**', 'src/hooks/**'],
-      exclude: ['src/utils/fonts.js', 'src/utils/download.js', 'src/hooks/useFileIO.js'],
+      include: ['src/utils/**', 'src/hooks/**', 'src/components/**'],
+      exclude: ['src/utils/fonts.js', 'src/utils/download.js'],
     },
   },
 });
