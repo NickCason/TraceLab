@@ -1,5 +1,5 @@
-import { test, expect } from 'vitest';
-import { buildProjectPayload, hydrateProjectData } from '../../src/utils/projectPersistence.js';
+import { test, expect, describe, it } from 'vitest';
+import { buildProjectPayload, hydrateProjectData, parseProjectFileText, classifyDroppedFile } from '../../src/utils/projectPersistence.js';
 
 test('buildProjectPayload serializes current comparison state when in comparison mode', () => {
   const payload = buildProjectPayload({
@@ -27,4 +27,44 @@ test('hydrateProjectData recomputes derived signals before returning loaded data
 
   expect(called).toBe(true);
   expect(hydrated.signals[1].values[0]).toBe(1);
+});
+
+describe('parseProjectFileText — branch coverage', () => {
+  it('returns ok: false for invalid JSON', () => {
+    const result = parseProjectFileText('not json at all!!!');
+    expect(result.ok).toBe(false);
+    expect(result.error).toBeTruthy();
+  });
+
+  it('returns ok: false for valid JSON that lacks the required data field', () => {
+    const result = parseProjectFileText(JSON.stringify({ version: 5 }));
+    expect(result.ok).toBe(false);
+  });
+
+  it('returns ok: false for null input', () => {
+    const result = parseProjectFileText('null');
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe('classifyDroppedFile — branch coverage', () => {
+  it('returns "project" for .tracelab extension', () => {
+    expect(classifyDroppedFile('myfile.tracelab')).toBe('project');
+  });
+
+  it('returns "csv" for .csv extension', () => {
+    expect(classifyDroppedFile('data.csv')).toBe('csv');
+  });
+
+  it('returns "csv" for uppercase .CSV extension (case-insensitive check)', () => {
+    expect(classifyDroppedFile('DATA.CSV')).toBe('csv');
+  });
+
+  it('returns "csv" when no extension is provided', () => {
+    expect(classifyDroppedFile('justfilename')).toBe('csv');
+  });
+
+  it('returns "csv" for empty string', () => {
+    expect(classifyDroppedFile('')).toBe('csv');
+  });
 });

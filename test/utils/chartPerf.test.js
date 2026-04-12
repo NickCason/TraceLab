@@ -1,9 +1,10 @@
-import { test, expect } from 'vitest';
+import { test, expect, describe, it, vi } from 'vitest';
 
 import {
   buildMovingAverageCached,
   buildDecimatedIndices,
   computeRangeStats,
+  profilePerf,
 } from '../../src/utils/chartPerf.js';
 
 test('moving-average cache returns stable ref and invalidates by window/source', () => {
@@ -60,4 +61,63 @@ test('downsampling preserves extrema and bypasses for small windows', () => {
 
   const small = buildDecimatedIndices(values, 10, 40, 50);
   expect(small).toEqual(Array.from({ length: 30 }, (_, i) => i + 10));
+});
+
+describe('profilePerf — branch coverage', () => {
+  it('returns function result directly when perf is not enabled', () => {
+    globalThis.__TRACE_PERF_ENABLED__ = false;
+    const result = profilePerf('test', () => 42);
+    expect(result).toBe(42);
+    delete globalThis.__TRACE_PERF_ENABLED__;
+  });
+
+  it('calls custom perf sink when enabled', () => {
+    globalThis.__TRACE_PERF_ENABLED__ = true;
+    const sink = vi.fn();
+    globalThis.__TRACE_PERF_SINK__ = sink;
+    profilePerf('my-label', () => 'value');
+    expect(sink).toHaveBeenCalledWith(expect.objectContaining({ label: 'my-label' }));
+    delete globalThis.__TRACE_PERF_ENABLED__;
+    delete globalThis.__TRACE_PERF_SINK__;
+  });
+
+  it('still returns function result when perf is enabled', () => {
+    globalThis.__TRACE_PERF_ENABLED__ = true;
+    globalThis.__TRACE_PERF_SINK__ = vi.fn();
+    const result = profilePerf('label', () => 99);
+    expect(result).toBe(99);
+    delete globalThis.__TRACE_PERF_ENABLED__;
+    delete globalThis.__TRACE_PERF_SINK__;
+  });
+});
+
+describe('buildMovingAverageCached — branch coverage', () => {
+  it('returns a copy of input when windowSize is 0', () => {
+    const vals = [1, 2, 3];
+    const result = buildMovingAverageCached(vals, 0);
+    expect(result).toEqual([1, 2, 3]);
+    // Should be a different reference (copy), not the original
+    expect(result).not.toBe(vals);
+  });
+
+  it('handles null values in the input array by carrying forward the running average', () => {
+    const vals = [1, null, 3, 4];
+    const result = buildMovingAverageCached(vals, 2);
+    // index 1 is null: buf has [1], so avgVals[1] = 1/1 = 1 (carry-forward)
+    expect(result[1]).toBe(1);
+    // index 2: buf has [1, 3] (null skipped adding), sum=4, avg=2
+    expect(result[2]).not.toBeNull();
+  });
+
+  it('returns cached result (same reference) on second call with same values and windowSize', () => {
+    const vals = [1, 2, 3, 4, 5];
+    const first = buildMovingAverageCached(vals, 3);
+    const second = buildMovingAverageCached(vals, 3);
+    expect(first).toBe(second);
+  });
+
+  it('returns empty array for empty input', () => {
+    const result = buildMovingAverageCached([], 3);
+    expect(result).toEqual([]);
+  });
 });
