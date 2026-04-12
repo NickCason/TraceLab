@@ -14,7 +14,7 @@ export function makeFileReader() {
       this.onload?.({ target: { result } });
     },
     triggerError(error) {
-      this.onerror?.(error);
+      this.onerror?.({ target: { error } });
     },
   };
   return reader;
