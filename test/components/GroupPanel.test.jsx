@@ -58,7 +58,7 @@ describe('GroupPanel', () => {
   it('calls onDrop with signal index and group index when a signal is dropped', () => {
     const onDrop = vi.fn();
     const { container } = render(<GroupPanel {...mkProps({ onDrop })} />);
-    const dropTarget = container.firstChild;
+    const dropTarget = container.querySelector('#group-panel-1');
     const dt = { getData: vi.fn(() => '0'), dropEffect: 'move' };
     fireEvent.drop(dropTarget, { dataTransfer: dt });
     expect(onDrop).toHaveBeenCalledWith(0, 1);
@@ -75,7 +75,7 @@ describe('GroupPanel', () => {
   it('shows drag-over hint when dragging over an empty group', () => {
     const props = mkProps({ groups: [2, 2] });
     const { container } = render(<GroupPanel {...props} />);
-    const dropTarget = container.firstChild;
+    const dropTarget = container.querySelector('#group-panel-1');
     fireEvent.dragOver(dropTarget, { dataTransfer: { dropEffect: 'move' } });
     expect(container.textContent).toContain('Drop here');
   });

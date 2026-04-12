@@ -30,6 +30,8 @@ const mkProps = (overrides = {}) => ({
 });
 
 describe('ExportPanel', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
   it('renders a tag for each signal', () => {
     const { container } = render(<ExportPanel {...mkProps()} />);
     expect(container.textContent).toContain('Tag0');
