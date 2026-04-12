@@ -7,7 +7,7 @@ const CTX_METHODS = [
   'bezierCurveTo', 'quadraticCurveTo', 'rect',
   'stroke', 'fill', 'fillRect', 'clearRect', 'strokeRect',
   'fillText', 'strokeText', 'clip',
-  'setLineDash', 'createLinearGradient', 'createRadialGradient',
+  'setLineDash',
   'drawImage', 'putImageData', 'getImageData', 'createImageData',
 ];
 
