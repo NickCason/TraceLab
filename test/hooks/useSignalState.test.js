@@ -100,7 +100,8 @@ describe('useSignalState', () => {
     const { result } = renderHook(() => useSignalState(data));
     act(() => { result.current.setMetadata({ 1: { displayName: 'OldName' } }); });
     act(() => { result.current.handleRenameDisplay(1, ''); });
-    expect(result.current.metadata[1].displayName).toBeUndefined();
+    // The hook deletes the property entirely; assert the key is absent (not just undefined)
+    expect(Object.prototype.hasOwnProperty.call(result.current.metadata[1] ?? {}, 'displayName')).toBe(false);
   });
 
   it('soloAll assigns each signal to its own group (cycling 1–MAX_GROUPS)', () => {
@@ -111,6 +112,17 @@ describe('useSignalState', () => {
     expect(result.current.groups[1]).toBe(2);
     expect(result.current.groups[2]).toBe(3);
     expect(result.current.groups[3]).toBe(4);
+  });
+
+  it('soloAll wraps group assignment around MAX_GROUPS', () => {
+    // MAX_GROUPS is 8, so with 9 signals, index 8 should wrap to group 1
+    const { result } = renderHook(() => useSignalState(mkData(9)));
+    act(() => { result.current.setGroups(Array(9).fill(1)); });
+    act(() => { result.current.soloAll(); });
+    // signal 0 -> group 1, signal 7 -> group 8, signal 8 -> group 1 (wraps)
+    expect(result.current.groups[0]).toBe(1);
+    expect(result.current.groups[7]).toBe(8);
+    expect(result.current.groups[8]).toBe(1);
   });
 
   it('cursor2Values returns values at cursor2Idx for each signal', () => {
