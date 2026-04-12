@@ -87,4 +87,56 @@ describe('useSignalState', () => {
     act(() => { result.current.setGroups([1, 2, 2]); });
     expect(result.current.isCombined).toBe(false);
   });
+
+  it('handleRenameDisplay sets displayName in metadata for the given index', () => {
+    const data = mkData(3);
+    const { result } = renderHook(() => useSignalState(data));
+    act(() => { result.current.handleRenameDisplay(1, 'Pressure'); });
+    expect(result.current.metadata[1].displayName).toBe('Pressure');
+  });
+
+  it('handleRenameDisplay removes displayName when called with empty string', () => {
+    const data = mkData(3);
+    const { result } = renderHook(() => useSignalState(data));
+    act(() => { result.current.setMetadata({ 1: { displayName: 'OldName' } }); });
+    act(() => { result.current.handleRenameDisplay(1, ''); });
+    expect(result.current.metadata[1].displayName).toBeUndefined();
+  });
+
+  it('soloAll assigns each signal to its own group (cycling 1–MAX_GROUPS)', () => {
+    const { result } = renderHook(() => useSignalState(mkData(4)));
+    act(() => { result.current.setGroups([1, 1, 1, 1]); });
+    act(() => { result.current.soloAll(); });
+    expect(result.current.groups[0]).toBe(1);
+    expect(result.current.groups[1]).toBe(2);
+    expect(result.current.groups[2]).toBe(3);
+    expect(result.current.groups[3]).toBe(4);
+  });
+
+  it('cursor2Values returns values at cursor2Idx for each signal', () => {
+    const data = mkData(2);
+    const { result } = renderHook(() => useSignalState(data));
+    act(() => { result.current.setCursor2Idx(3); });
+    // data.signals[0].values[3] = 3 (0+3), data.signals[1].values[3] = 4 (1+3)
+    expect(result.current.cursor2Values[0]).toBe(3);
+    expect(result.current.cursor2Values[1]).toBe(4);
+  });
+
+  it('cursor2Values is null when cursor2Idx is null', () => {
+    const { result } = renderHook(() => useSignalState(mkData(2)));
+    expect(result.current.cursor2Values).toBe(null);
+  });
+
+  it('toggleGroup hides all members when all are visible', () => {
+    const data = mkData(3);
+    const { result } = renderHook(() => useSignalState(data));
+    act(() => {
+      result.current.setGroups([1, 1, 2]);
+      result.current.setVisible([true, true, true]);
+    });
+    act(() => { result.current.toggleGroup(1); });
+    expect(result.current.visible[0]).toBe(false);
+    expect(result.current.visible[1]).toBe(false);
+    expect(result.current.visible[2]).toBe(true); // group 2 unaffected
+  });
 });
