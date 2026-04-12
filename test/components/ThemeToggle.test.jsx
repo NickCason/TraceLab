@@ -16,8 +16,7 @@ describe('ThemeToggle', () => {
   it('calls setTheme with "light" when clicked in dark mode', () => {
     const setTheme = vi.fn();
     const { container } = render(<ThemeToggle theme="dark" setTheme={setTheme} />);
-    // outer div children: [span (label), div (track with onClick)]
-    const track = container.firstChild.children[1];
+    const track = container.querySelector('[data-testid="theme-toggle-track"]');
     fireEvent.click(track);
     expect(setTheme).toHaveBeenCalledWith('light');
   });
@@ -25,8 +24,7 @@ describe('ThemeToggle', () => {
   it('calls setTheme with "dark" when clicked in light mode', () => {
     const setTheme = vi.fn();
     const { container } = render(<ThemeToggle theme="light" setTheme={setTheme} />);
-    // outer div children: [span (label), div (track with onClick)]
-    const track = container.firstChild.children[1];
+    const track = container.querySelector('[data-testid="theme-toggle-track"]');
     fireEvent.click(track);
     expect(setTheme).toHaveBeenCalledWith('dark');
   });
