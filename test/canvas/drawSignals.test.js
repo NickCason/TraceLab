@@ -79,7 +79,10 @@ test('drawSignals calls beginPath for an analog signal with values', () => {
   expect(ctx._calls.some(c => c.method === 'beginPath')).toBe(true);
 });
 
-test('drawSignals produces no lineTo calls when all values are null', () => {
+test('drawSignals produces no path calls when all values are null', () => {
+  // drawSignals calls ctx.beginPath() once unconditionally per non-samples signal before iterating,
+  // but never calls moveTo or lineTo when all values are null — so beginPath count equals 1 (setup
+  // only, no actual path drawn) while moveTo and lineTo counts are both 0.
   const t = { chart: '#111', text3: '#999', grid: '#333' };
   const values = Array.from({ length: 10 }, () => null);
   const entry = { signal: { values, isDigital: false }, color: '#f00', strokeMode: 'solid', thickness: 1.5, opacity: 0.9 };
@@ -94,6 +97,9 @@ test('drawSignals produces no lineTo calls when all values are null', () => {
 
   const lineToCount = ctx._calls.filter(c => c.method === 'lineTo').length;
   const moveToCount = ctx._calls.filter(c => c.method === 'moveTo').length;
+  const beginPathCount = ctx._calls.filter(c => c.method === 'beginPath').length;
   expect(lineToCount).toBe(0);
   expect(moveToCount).toBe(0);
+  // beginPath is called once (path setup) but no drawing commands follow it
+  expect(beginPathCount).toBe(1);
 });

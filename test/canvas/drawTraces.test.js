@@ -80,20 +80,27 @@ const mkThemeSpy = () => ({
   border: 'rgba(255,255,255,0.12)',
 });
 
-test('drawTraces invokes fillRect when a y-axis reference overlay is present', () => {
-  const ctx = mkSpyCtx();
+test('drawTraces invokes more beginPath calls when a y-axis line overlay is present', () => {
   const ov = { axis: 'y', type: 'line', value: 0.5, label: 'ref', color: '#f90', dashed: false, opacity: 1, visible: true };
-
-  drawTraces(ctx, mkGeoSpy(), {
+  const baseParams = {
     start: 0, end: 10,
     timestamps: Array.from({ length: 10 }, (_, i) => i * 10),
     rebaseOffset: 0, showTimeAxis: false, compact: false,
-    referenceOverlays: [ov], yRanges: [[0, 1]], unifyRange: false,
+    yRanges: [[0, 1]], unifyRange: false,
     signalEntries: [], rangeStatsByEntry: [],
     getPlotValue: () => null, showExtrema: false,
     groupColor: null, showEdgeValues: false,
     t: mkThemeSpy(),
-  });
+  };
 
-  expect(ctx._calls.some(c => c.method === 'beginPath' || c.method === 'fillRect')).toBe(true);
+  const ctxWithOverlay = mkSpyCtx();
+  drawTraces(ctxWithOverlay, mkGeoSpy(), { ...baseParams, referenceOverlays: [ov] });
+  const beginPathWithOverlay = ctxWithOverlay._calls.filter(c => c.method === 'beginPath').length;
+
+  const ctxNoOverlay = mkSpyCtx();
+  drawTraces(ctxNoOverlay, mkGeoSpy(), { ...baseParams, referenceOverlays: [] });
+  const beginPathNoOverlay = ctxNoOverlay._calls.filter(c => c.method === 'beginPath').length;
+
+  // The y-axis line overlay calls beginPath in drawOverlays, so overlay run must produce more
+  expect(beginPathWithOverlay).toBeGreaterThan(beginPathNoOverlay);
 });

@@ -69,23 +69,24 @@ test('drawGrid invokes beginPath at least once when drawing grid lines', () => {
   expect(ctx._calls.some(c => c.method === 'beginPath')).toBe(true);
 });
 
-test('drawGrid in compact mode produces fewer fillText calls than non-compact', () => {
+test('drawGrid in compact mode produces fewer beginPath calls than non-compact', () => {
+  // compact sets nY=3 instead of nY=5, so fewer horizontal grid lines are drawn (4 vs 6)
   const tSetting = { grid: '#333', text3: '#999' };
   const ts = Array.from({ length: 1000 }, (_, i) => i * 10);
 
   const ctxFull = mkSpyCtx();
   drawGrid(ctxFull, mkGeoSpy(), {
     start: 0, end: 1000, timestamps: ts, rebaseOffset: 0,
-    showTimeAxis: true, compact: false, t: tSetting,
+    showTimeAxis: false, compact: false, t: tSetting,
   });
 
   const ctxCompact = mkSpyCtx();
   drawGrid(ctxCompact, mkGeoSpy(), {
     start: 0, end: 1000, timestamps: ts, rebaseOffset: 0,
-    showTimeAxis: true, compact: true, t: tSetting,
+    showTimeAxis: false, compact: true, t: tSetting,
   });
 
-  const fullLabels = ctxFull._calls.filter(c => c.method === 'fillText').length;
-  const compactLabels = ctxCompact._calls.filter(c => c.method === 'fillText').length;
-  expect(compactLabels).toBeLessThanOrEqual(fullLabels);
+  const fullBeginPath = ctxFull._calls.filter(c => c.method === 'beginPath').length;
+  const compactBeginPath = ctxCompact._calls.filter(c => c.method === 'beginPath').length;
+  expect(compactBeginPath).toBeLessThan(fullBeginPath);
 });
