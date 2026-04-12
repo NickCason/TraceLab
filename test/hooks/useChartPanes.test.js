@@ -110,4 +110,32 @@ describe('useChartPanes', () => {
     );
     expect(result.current.globalLeftEdgeLabelWidth).toBeGreaterThan(0);
   });
+
+  it('visible:false signals are excluded from pane entries', () => {
+    const data = mkData(3);
+    // Put all signals in the same group so we can count total entries across panes
+    const signalState = {
+      ...mkSignalState(3),
+      visible: [true, false, true],
+      groups: [1, 1, 1],
+    };
+    const { result } = renderHook(() =>
+      useChartPanes(data, signalState, mkFileIO(), 'dark', THEMES.dark)
+    );
+    const totalEntries = result.current.chartPanes.reduce((sum, pane) => sum + pane.entries.length, 0);
+    expect(totalEntries).toBe(2);
+  });
+
+  it('signals in different groups produce separate panes', () => {
+    const data = mkData(4);
+    const signalState = {
+      ...mkSignalState(4),
+      visible: [true, true, true, true],
+      groups: [1, 2, 3, 4],
+    };
+    const { result } = renderHook(() =>
+      useChartPanes(data, signalState, mkFileIO(), 'dark', THEMES.dark)
+    );
+    expect(result.current.chartPanes.length).toBe(4);
+  });
 });

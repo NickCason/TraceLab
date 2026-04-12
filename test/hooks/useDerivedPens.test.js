@@ -208,4 +208,49 @@ describe('useDerivedPens', () => {
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Deleted'), 'success');
     expect(setData).toHaveBeenCalledOnce();
   });
+
+  it('createDerivedPen with rolling_avg type calls setData and adds a new signal', () => {
+    const data = mkData();
+    const setData = vi.fn();
+    const showToast = vi.fn();
+
+    const { result } = renderHook(() =>
+      useDerivedPens(data, setData, mkSignalState(), gc, showToast)
+    );
+
+    act(() => {
+      result.current.createDerivedPen({
+        type: 'rolling_avg',
+        source: 0,
+        window: 5,
+        groupIdx: 1,
+      });
+    });
+
+    expect(setData).toHaveBeenCalledOnce();
+    const newData = setData.mock.calls[0][0];
+    expect(newData.signals.length).toBe(data.signals.length + 1);
+  });
+
+  it('createDerivedPen with sum type produces a signal with isDerived:true', () => {
+    const data = mkData();
+    const setData = vi.fn();
+
+    const { result } = renderHook(() =>
+      useDerivedPens(data, setData, mkSignalState(), gc, vi.fn())
+    );
+
+    act(() => {
+      result.current.createDerivedPen({
+        type: 'sum',
+        sources: [0, 1],
+        groupIdx: 1,
+      });
+    });
+
+    expect(setData).toHaveBeenCalledOnce();
+    const newData = setData.mock.calls[0][0];
+    const newSignal = newData.signals[newData.signals.length - 1];
+    expect(newSignal.isDerived).toBe(true);
+  });
 });
