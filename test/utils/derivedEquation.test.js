@@ -1,4 +1,4 @@
-import { test, expect } from 'vitest';
+import { test, expect, describe, it, vi } from 'vitest';
 import { normalizeEquationExpression, buildEquationEvaluator } from '../../src/utils/derivedEquation.js';
 
 test('normalizeEquationExpression rewrites signal tokens for evaluator', () => {
@@ -33,4 +33,47 @@ test('buildEquationEvaluator does not allow side effects from imported equations
   expect(result).toBe(null);
   expect(globalThis.__traceLabSideEffect).toBe(0);
   delete globalThis.__traceLabSideEffect;
+});
+
+describe('buildEquationEvaluator — error paths', () => {
+  it('returns null when getAt returns null for a missing signal reference', () => {
+    // null from getAt propagates through the evaluator
+    const evaluate = buildEquationEvaluator('s99');
+    const getAt = vi.fn(() => null);
+    const result = evaluate(0, getAt);
+    expect(result).toBeNull();
+  });
+
+  it('division by zero returns null (guarded by implementation)', () => {
+    const evaluate = buildEquationEvaluator('s0 / s1');
+    const getAt = (_sigIdx, _sampleIdx) => _sigIdx === 0 ? 10 : 0;
+    const result = evaluate(0, getAt);
+    expect(result).toBeNull();
+  });
+
+  it('operator precedence: multiplication before addition', () => {
+    const evaluate = buildEquationEvaluator('s0 + s1 * s2');
+    const getAt = (_sig) => _sig === 0 ? 1 : _sig === 1 ? 2 : 3;
+    // 1 + (2 * 3) = 7
+    expect(evaluate(0, getAt)).toBe(7);
+  });
+
+  it('parentheses override default precedence', () => {
+    const evaluate = buildEquationEvaluator('(s0 + s1) * s2');
+    const getAt = (_sig) => _sig === 0 ? 1 : _sig === 1 ? 2 : 3;
+    // (1 + 2) * 3 = 9
+    expect(evaluate(0, getAt)).toBe(9);
+  });
+
+  it('math function abs evaluates correctly', () => {
+    const evaluate = buildEquationEvaluator('abs(s0)');
+    const getAt = () => -5;
+    expect(evaluate(0, getAt)).toBe(5);
+  });
+
+  it('returns null when any operand is null', () => {
+    const evaluate = buildEquationEvaluator('s0 + s1');
+    const getAt = (_sig) => _sig === 0 ? 5 : null;
+    expect(evaluate(0, getAt)).toBeNull();
+  });
 });
