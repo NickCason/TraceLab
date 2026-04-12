@@ -11,7 +11,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/utils/**', 'src/hooks/**'],
-      exclude: ['src/utils/fonts.js', 'src/utils/download.js'],
+      exclude: ['src/utils/fonts.js', 'src/utils/download.js', 'src/hooks/useFileIO.js'],
     },
   },
 });
