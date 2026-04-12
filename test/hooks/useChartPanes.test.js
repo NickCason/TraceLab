@@ -82,4 +82,32 @@ describe('useChartPanes', () => {
       expect(pane.groupIdx).toBeTruthy();
     });
   });
+
+  it('comparisonChartPanes is non-empty when comparisonData and comparisonState are provided', () => {
+    const compData = mkData(2);
+    const compState = mkSignalState(2);
+    const fileIO = { comparisonData: compData, comparisonState: compState };
+    const { result } = renderHook(() =>
+      useChartPanes(mkData(3), mkSignalState(3), fileIO, 'dark', THEMES.dark)
+    );
+    expect(result.current.comparisonChartPanes.length).toBeGreaterThan(0);
+  });
+
+  it('globalEdgeLabelWidth is greater than 0 when showEdgeValues is true and data has values', () => {
+    const data = mkData(2);
+    const signalState = { ...mkSignalState(2), showEdgeValues: true, viewRange: [0, 50] };
+    const { result } = renderHook(() =>
+      useChartPanes(data, signalState, mkFileIO(), 'dark', THEMES.dark)
+    );
+    expect(result.current.globalEdgeLabelWidth).toBeGreaterThan(0);
+  });
+
+  it('globalLeftEdgeLabelWidth is greater than 0 when showEdgeValues is true and data has values', () => {
+    const data = mkData(2);
+    const signalState = { ...mkSignalState(2), showEdgeValues: true, viewRange: [0, 50] };
+    const { result } = renderHook(() =>
+      useChartPanes(data, signalState, mkFileIO(), 'dark', THEMES.dark)
+    );
+    expect(result.current.globalLeftEdgeLabelWidth).toBeGreaterThan(0);
+  });
 });
