@@ -65,4 +65,34 @@ describe('useOverlays', () => {
     act(() => { result.current.addOverlay(1, 'band'); });
     expect(result.current.referenceOverlays[1][0].type).toBe('band');
   });
+
+  it('adding overlay to empty group creates the group entry', () => {
+    const { result } = renderHook(() =>
+      useOverlays(mkData(), [1, 1], [true, true], [0, 100], {})
+    );
+    // referenceOverlays starts empty — group 2 has no entry yet
+    expect(result.current.referenceOverlays[2]).toBeUndefined();
+    act(() => { result.current.addOverlay(2, 'line'); });
+    expect(Array.isArray(result.current.referenceOverlays[2])).toBe(true);
+    expect(result.current.referenceOverlays[2].length).toBe(1);
+  });
+
+  it('deleteOverlay removes the correct overlay and leaves the other', () => {
+    const { result } = renderHook(() =>
+      useOverlays(mkData(), [1, 1], [true, true], [0, 100], {})
+    );
+    // Add two overlays to group 1
+    act(() => { result.current.addOverlay(1, 'line'); });
+    act(() => { result.current.addOverlay(1, 'line'); });
+    expect(result.current.referenceOverlays[1].length).toBe(2);
+
+    // Capture id of the first overlay, then delete it
+    const firstId = result.current.referenceOverlays[1][0].id;
+    const secondId = result.current.referenceOverlays[1][1].id;
+    act(() => { result.current.deleteOverlay(1, firstId); });
+
+    // Group should now have 1 overlay, and it should be the second one
+    expect(result.current.referenceOverlays[1].length).toBe(1);
+    expect(result.current.referenceOverlays[1][0].id).toBe(secondId);
+  });
 });

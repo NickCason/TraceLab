@@ -151,4 +151,39 @@ describe('useSignalState', () => {
     expect(result.current.visible[1]).toBe(false);
     expect(result.current.visible[2]).toBe(true); // group 2 unaffected
   });
+
+  it('getGroupLabel returns override when groupNames is set', () => {
+    const { result } = renderHook(() => useSignalState(mkData(2)));
+    act(() => { result.current.setGroupNames({ 1: 'Motors' }); });
+    expect(result.current.getGroupLabel(1)).toBe('Motors');
+  });
+
+  it('getGroupLabel returns default label when no override is set', () => {
+    const { result } = renderHook(() => useSignalState(mkData(2)));
+    // Default format is "Group <LABEL>" where LABEL comes from GROUP_LABELS (A, B, C, ...)
+    // Group 1 => GROUP_LABELS[0] => "A" => "Group A"
+    expect(result.current.getGroupLabel(1)).toBe('Group A');
+  });
+
+  it('cursorValues interpolates when exact value is null', () => {
+    const data = {
+      timestamps: [0, 1, 2, 3, 4],
+      signals: [{ values: [1, null, null, null, 5] }],
+      tagNames: ['Tag0'],
+    };
+    const { result } = renderHook(() => useSignalState(data));
+    act(() => { result.current.setCursorIdx(2); });
+    // Nearest left neighbor is 1 (at index 1), nearest right neighbor is 5 (at index 3)
+    // Interpolated midpoint: (1 + 5) / 2 = 3
+    expect(result.current.cursorValues[0].isInterpolated).toBe(true);
+    expect(result.current.cursorValues[0].value).toBe(3);
+  });
+
+  it('resetZoom is a no-op when data is null', () => {
+    const { result } = renderHook(() => useSignalState(null));
+    act(() => { result.current.setViewRange([5, 10]); });
+    act(() => { result.current.resetZoom(); });
+    // resetZoom guards on data != null; with null data viewRange should remain unchanged
+    expect(result.current.viewRange).toEqual([5, 10]);
+  });
 });
