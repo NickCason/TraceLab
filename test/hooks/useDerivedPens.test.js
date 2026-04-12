@@ -135,4 +135,63 @@ describe('useDerivedPens', () => {
     expect(newData.signals.length).toBe(2);
     expect(newData.tagNames.includes('MyDerived')).toBe(false);
   });
+
+  it('updateDerivedPen modifies config and calls setData with updated signal', () => {
+    const data = mkData();
+    const setData = vi.fn();
+    const showToast = vi.fn();
+    const signalState = mkSignalState();
+
+    const { result } = renderHook(() =>
+      useDerivedPens(data, setData, signalState, gc, showToast)
+    );
+
+    // create a pen first
+    act(() => {
+      result.current.createDerivedPen({ type: 'equation', expression: 's0 + s1', groupIdx: 1 });
+    });
+    const createdIdx = data.signals.length; // index of the new derived signal
+    setData.mockClear();
+
+    // now update it
+    act(() => {
+      result.current.updateDerivedPen(createdIdx, {
+        type: 'equation',
+        expression: 's0 - s1',
+        name: 'My Updated Pen',
+        groupIdx: 1,
+      });
+    });
+
+    expect(showToast).toHaveBeenCalledWith('Derived pen updated', 'success');
+    expect(setData).toHaveBeenCalledOnce();
+  });
+
+  it('deleteDerivedPen removes derived signal and calls showToast', () => {
+    const baseData = mkData();
+    const derivedSignal = {
+      values: Array.from({ length: 20 }, (_, i) => i),
+      isDigital: false,
+      isDerived: true,
+    };
+    const data = {
+      ...baseData,
+      signals: [...baseData.signals, derivedSignal],
+      tagNames: [...baseData.tagNames, 'MyDerivedPen'],
+    };
+    const setData = vi.fn();
+    const showToast = vi.fn();
+    const signalState = mkSignalState();
+
+    const { result } = renderHook(() =>
+      useDerivedPens(data, setData, signalState, gc, showToast)
+    );
+
+    act(() => {
+      result.current.deleteDerivedPen(2);
+    });
+
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Deleted'), 'success');
+    expect(setData).toHaveBeenCalledOnce();
+  });
 });
