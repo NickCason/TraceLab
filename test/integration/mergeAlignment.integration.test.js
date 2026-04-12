@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect } from 'vitest';
 
 import { computeAlignmentInfo, mergeUnified } from '../../src/utils/mergeDatasets.js';
 
@@ -18,9 +17,9 @@ test('merge remains stable with near-duplicate timestamps across datasets', () =
   };
 
   const merged = mergeUnified(existing, incoming);
-  assert.deepEqual(merged.timestamps, [1000, 1010, 1015, 1020]);
-  assert.deepEqual(merged.signals[0].values, [1, 2, null, 3]);
-  assert.deepEqual(merged.signals[1].values, [8, null, 9, 10]);
+  expect(merged.timestamps).toEqual([1000, 1010, 1015, 1020]);
+  expect(merged.signals[0].values).toEqual([1, 2, null, 3]);
+  expect(merged.signals[1].values).toEqual([8, null, 9, 10]);
 });
 
 test('sample-rate mismatch surfaces warning while preserving merged ordering', () => {
@@ -38,17 +37,14 @@ test('sample-rate mismatch surfaces warning while preserving merged ordering', (
   };
 
   const merged = mergeUnified(existing, incoming);
-  assert.equal(merged.sampleRateWarning, true);
-  assert.deepEqual(merged.timestamps, [0, 5, 10, 20]);
-  assert.equal(merged.meta.samplePeriod, 5);
+  expect(merged.sampleRateWarning).toBe(true);
+  expect(merged.timestamps).toEqual([0, 5, 10, 20]);
+  expect(merged.meta.samplePeriod).toBe(5);
 });
 
 test('alignment guards empty datasets and reports invalid alignment metadata', () => {
   const info = computeAlignmentInfo({ timestamps: [1, 2] }, { timestamps: [] });
-  assert.equal(info.isValid, false);
+  expect(info.isValid).toBe(false);
 
-  assert.throws(
-    () => mergeUnified({ timestamps: [1], signals: [], meta: {} }, { timestamps: [], signals: [], meta: {} }),
-    /empty timestamps/
-  );
+  expect(() => mergeUnified({ timestamps: [1], signals: [], meta: {} }, { timestamps: [], signals: [], meta: {} })).toThrow(/empty timestamps/);
 });

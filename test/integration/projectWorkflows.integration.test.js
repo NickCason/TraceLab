@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -16,7 +15,7 @@ const fixture = (...parts) => fs.readFileSync(path.join(process.cwd(), 'test/fix
 test('project roundtrip restores derived configs, overlays/groups, and comparison state', () => {
   const projectText = fixture('project', 'comparison-roundtrip.json');
   const parsed = parseProjectFileText(projectText);
-  assert.equal(parsed.ok, true);
+  expect(parsed.ok).toBe(true);
 
   const recomputeCalls = [];
   const hydrated = hydrateProjectData(parsed.project.data, parsed.project.derivedConfigs, (data, cfg) => {
@@ -27,14 +26,14 @@ test('project roundtrip restores derived configs, overlays/groups, and compariso
     };
   });
 
-  assert.equal(recomputeCalls.length, 1);
-  assert.equal(hydrated.signals.length, 3);
+  expect(recomputeCalls.length).toBe(1);
+  expect(hydrated.signals.length).toBe(3);
 
   const normalized = normalizeLoadedProject(parsed.project, hydrated);
-  assert.deepEqual(normalized.groups, [1, 2, 3]);
-  assert.deepEqual(normalized.referenceOverlays, { 1: [{ name: 'target', value: 100 }] });
-  assert.equal(normalized.importMode, 'comparison');
-  assert.deepEqual(normalized.comparisonState, {
+  expect(normalized.groups).toEqual([1, 2, 3]);
+  expect(normalized.referenceOverlays).toEqual({ 1: [{ name: 'target', value: 100 }] });
+  expect(normalized.importMode).toBe('comparison');
+  expect(normalized.comparisonState).toEqual({
     visible: [true],
     groups: [1],
     groupNames: {},
@@ -73,8 +72,8 @@ test('project roundtrip restores derived configs, overlays/groups, and compariso
     comparisonState: normalized.comparisonState,
   });
 
-  assert.equal(payload.importMode, 'comparison');
-  assert.equal(payload.comparisonData.meta.trendName, 'Compare');
+  expect(payload.importMode).toBe('comparison');
+  expect(payload.comparisonData.meta.trendName).toBe('Compare');
 });
 
 test('project payload omits comparison datasets when mode is not comparison', () => {
@@ -87,34 +86,34 @@ test('project payload omits comparison datasets when mode is not comparison', ()
     comparisonData: { timestamps: [2], signals: [] }, comparisonState: { viewRange: [0, 1] },
   });
 
-  assert.equal(payload.comparisonData, undefined);
-  assert.equal(payload.comparisonState, undefined);
+  expect(payload.comparisonData).toBe(undefined);
+  expect(payload.comparisonState).toBe(undefined);
 });
 
 test('drag/drop classification routes .tracelab files regardless of case', () => {
-  assert.equal(classifyDroppedFile('session.tracelab'), 'project');
-  assert.equal(classifyDroppedFile('SESSION.TRACELAB'), 'project');
-  assert.equal(classifyDroppedFile('signals.csv'), 'csv');
+  expect(classifyDroppedFile('session.tracelab')).toBe('project');
+  expect(classifyDroppedFile('SESSION.TRACELAB')).toBe('project');
+  expect(classifyDroppedFile('signals.csv')).toBe('csv');
 });
 
 test('legacy/malformed project fields are sanitized and migrated to safe defaults', () => {
   const parsed = parseProjectFileText(fixture('project', 'legacy-v4-invalid-groups.json'));
-  assert.equal(parsed.ok, true);
+  expect(parsed.ok).toBe(true);
 
   const hydrated = hydrateProjectData(parsed.project.data, {}, (d) => d);
   const normalized = normalizeLoadedProject(parsed.project, hydrated);
 
-  assert.deepEqual(normalized.groups, [1, 8, 1]);
-  assert.deepEqual(normalized.splitRanges, { 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true });
-  assert.deepEqual(normalized.avgWindow, { 0: 20, 2: 20 });
-  assert.equal(normalized.importMode, null);
-  assert.deepEqual(normalized.comparisonData, null);
-  assert.deepEqual(normalized.metadata, {});
-  assert.deepEqual(normalized.groupNames, {});
+  expect(normalized.groups).toEqual([1, 8, 1]);
+  expect(normalized.splitRanges).toEqual({ 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true });
+  expect(normalized.avgWindow).toEqual({ 0: 20, 2: 20 });
+  expect(normalized.importMode).toBe(null);
+  expect(normalized.comparisonData).toEqual(null);
+  expect(normalized.metadata).toEqual({});
+  expect(normalized.groupNames).toEqual({});
 });
 
 test('partially corrupted project payload fails gracefully with explicit error', () => {
   const parsed = parseProjectFileText('{"version":6, bad json');
-  assert.equal(parsed.ok, false);
-  assert.equal(parsed.error, 'Failed to parse project file');
+  expect(parsed.ok).toBe(false);
+  expect(parsed.error).toBe('Failed to parse project file');
 });
