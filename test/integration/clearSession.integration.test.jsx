@@ -85,4 +85,27 @@ describe('Clear session integration', () => {
     expect(container.querySelector('#dialog-clear-confirm')).toBeNull();
     expect(container.querySelector('#btn-project-menu')).not.toBeNull();
   });
+
+  it('drag-drop a CSV while loaded opens the confirm dialog instead of overwriting', async () => {
+    const { container } = render(<App />);
+    await loadSampleCsv(container);
+    // Build a second CSV that matches parseStudio5000CSV's actual format.
+    // (Reuse the same fixture style as loadSampleCsv — see top of file.)
+    const csv2 = [
+      'Controller Name:,Other',
+      'Trend Name:,Other',
+      'Sample Period:,5 ms',
+      'Header:,"Date","Time","X"',
+      'Data,2025-02-01,00:00:00;000,99',
+    ].join('\n');
+    const file = new File([csv2], 'other.csv', { type: 'text/csv' });
+    const root = container.firstChild;
+    await act(async () => {
+      fireEvent.drop(root, {
+        dataTransfer: { files: [file] },
+        preventDefault: () => {},
+      });
+    });
+    expect(container.querySelector('#dialog-clear-confirm')).not.toBeNull();
+  });
 });

@@ -187,6 +187,13 @@ export default function App() {
     else projectInputRef.current?.click();
   }, [data]);
 
+  const handleLoadedDrop = useCallback((e) => {
+    e.preventDefault();
+    const f = e.dataTransfer?.files?.[0];
+    if (!f) return;
+    setClearDialog({ open: true, pendingAction: { type: "drop", file: f } });
+  }, []);
+
   const saveAndClear = useCallback(() => {
     setProjectMenuOpen(false);
     saveProject();
@@ -236,7 +243,11 @@ export default function App() {
   }
 
   return (
-    <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column", background: t.bg, fontFamily: FONT_MONO, color: t.text1, overflow: "hidden" }}>
+    <div
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleLoadedDrop}
+      style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column", background: t.bg, fontFamily: FONT_MONO, color: t.text1, overflow: "hidden" }}
+    >
       <AppHeader
         t={t} theme={theme} setTheme={setTheme}
         data={data}
