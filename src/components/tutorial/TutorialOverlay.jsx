@@ -110,11 +110,11 @@ function positionCard(cardEl, arrowEl, step, rect) {
   cardEl.style.left = `${left}px`;
 }
 
-export default function TutorialOverlay({ open, onClose, t, theme }) {
+export default function TutorialOverlay({ open, onClose, t, theme, stepCtx, stepsOverride }) {
   const [step, setStep] = useState(0);
   const [confirming, setConfirming] = useState(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const steps = useMemo(() => buildSteps(t), [theme]);
+  const steps = useMemo(() => stepsOverride || buildSteps(t), [stepsOverride, theme]);
 
   const backdropRef  = useRef(null);
   const backdropRef2 = useRef(null);
@@ -198,6 +198,20 @@ export default function TutorialOverlay({ open, onClose, t, theme }) {
       window.removeEventListener("resize", position);
     };
   }, [open, step, steps, t.accent, confirming]);
+
+  // Lifecycle hooks (onEnter / onLeave). Runs after step change.
+  useEffect(() => {
+    if (!open) return;
+    const s = steps[step];
+    if (s?.onEnter) {
+      try { s.onEnter(stepCtx || {}); } catch { /* hooks must not throw */ }
+    }
+    return () => {
+      if (s?.onLeave) {
+        try { s.onLeave(stepCtx || {}); } catch { /* same */ }
+      }
+    };
+  }, [open, step, steps, stepCtx]);
 
   if (!open) return null;
 
