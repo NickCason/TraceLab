@@ -202,4 +202,31 @@ describe('useFileIO', () => {
       'info'
     );
   });
+
+  it('reset() clears import mode, comparison data, rebase, and dialog state', () => {
+    const setData = vi.fn();
+    const signalState = mkSignalState();
+    const derivedPens = { recomputeDerivedSignals: vi.fn(), setDerivedConfigs: vi.fn() };
+    const setRefOverlays = vi.fn();
+    const showToast = vi.fn();
+    const { result } = renderHook(() =>
+      useFileIO(null, setData, signalState, derivedPens, setRefOverlays, showToast));
+    act(() => {
+      result.current.setImportMode('comparison');
+      result.current.setComparisonData({ signals: [] });
+      result.current.setComparisonState({ visible: [] });
+      result.current.setRebaseOffset(60_000);
+      result.current.setRebaseInput('2025-01-01');
+      result.current.setActiveSidebarDataset('comparison');
+      result.current.setImportDialogOpen(true);
+    });
+    act(() => { result.current.reset(); });
+    expect(result.current.importMode).toBeNull();
+    expect(result.current.comparisonData).toBeNull();
+    expect(result.current.comparisonState).toBeNull();
+    expect(result.current.rebaseOffset).toBe(0);
+    expect(result.current.rebaseInput).toBe('');
+    expect(result.current.activeSidebarDataset).toBe('primary');
+    expect(result.current.importDialogOpen).toBe(false);
+  });
 });

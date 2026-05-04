@@ -175,6 +175,16 @@ export function useFileIO(data, setData, signalState, derivedPens, setReferenceO
     showToast("Rebase cleared — original timestamps restored", "info");
   }, [showToast]);
 
+  const reset = useCallback(() => {
+    setImportMode(null);
+    setComparisonData(null);
+    setComparisonState(null);
+    setRebaseOffset(0);
+    setRebaseInput("");
+    setActiveSidebarDataset("primary");
+    setImportDialogOpen(false);
+  }, []);
+
   return {
     importMode, setImportMode,
     comparisonData, setComparisonData,
@@ -187,5 +197,6 @@ export function useFileIO(data, setData, signalState, derivedPens, setReferenceO
     handleFile, handleUnifiedImport, handleComparisonImport,
     loadProject, handleDrop,
     applyRebase, clearRebase,
+    reset,
   };
 }
