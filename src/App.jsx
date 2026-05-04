@@ -11,6 +11,7 @@ import ChartArea from "./components/ChartArea";
 import DerivedPenDialog from "./components/DerivedPenDialog";
 import Toast from "./components/Toast";
 import ImportDialog from "./components/ImportDialog";
+import ClearConfirmDialog from "./components/ClearConfirmDialog";
 import TutorialOverlay from "./components/tutorial/TutorialOverlay";
 import { THEMES, FONT_DISPLAY, FONT_MONO } from "./constants/theme";
 import { GROUP_COLORS_DARK, GROUP_COLORS_LIGHT } from "./constants/groups";
@@ -28,6 +29,9 @@ export default function App() {
   const [activePanel, setActivePanel] = useState("signals");
   const [editingMeta, setEditingMeta] = useState(null);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  // pendingAction: null | "clear" | "load-csv" | "load-project" | { type: "drop", file }
+  const [clearDialog, setClearDialog] = useState({ open: false, pendingAction: null });
   const fileInputRef = useRef(null);
   const projectInputRef = useRef(null);
 
@@ -154,6 +158,70 @@ export default function App() {
     });
   }, [signalState]);
 
+  const clearSession = useCallback(() => {
+    signalState.reset();
+    derivedPens.reset();
+    overlays.reset();
+    fileIO.reset();
+    setActivePanel("signals");
+    setEditingMeta(null);
+    setProjectMenuOpen(false);
+    setClearDialog({ open: false, pendingAction: null });
+    setData(null);
+  }, [signalState, derivedPens, overlays, fileIO]);
+
+  const requestClear = useCallback(() => {
+    setProjectMenuOpen(false);
+    setClearDialog({ open: true, pendingAction: "clear" });
+  }, []);
+
+  const requestLoadCsv = useCallback(() => {
+    setProjectMenuOpen(false);
+    if (data) setClearDialog({ open: true, pendingAction: "load-csv" });
+    else fileInputRef.current?.click();
+  }, [data]);
+
+  const requestLoadProject = useCallback(() => {
+    setProjectMenuOpen(false);
+    if (data) setClearDialog({ open: true, pendingAction: "load-project" });
+    else projectInputRef.current?.click();
+  }, [data]);
+
+  const saveAndClear = useCallback(() => {
+    setProjectMenuOpen(false);
+    saveProject();
+    clearSession();
+  }, [saveProject, clearSession]);
+
+  const performPendingAction = useCallback((pending) => {
+    if (pending === "load-csv") fileInputRef.current?.click();
+    else if (pending === "load-project") projectInputRef.current?.click();
+    else if (pending && pending.type === "drop") {
+      pending.file.name.endsWith(".tracelab")
+        ? fileIO.loadProject(pending.file)
+        : fileIO.handleFile(pending.file);
+    }
+  }, [fileIO]);
+
+  const onDialogCancel = useCallback(() => {
+    setClearDialog({ open: false, pendingAction: null });
+  }, []);
+
+  const onDialogDiscard = useCallback(() => {
+    const pending = clearDialog.pendingAction;
+    clearSession();
+    // pending action runs after clear; for load-* actions clear() already
+    // triggered EmptyState — open the picker.
+    if (pending && pending !== "clear") performPendingAction(pending);
+  }, [clearDialog.pendingAction, clearSession, performPendingAction]);
+
+  const onDialogSave = useCallback(() => {
+    const pending = clearDialog.pendingAction;
+    saveProject();
+    clearSession();
+    if (pending && pending !== "clear") performPendingAction(pending);
+  }, [clearDialog.pendingAction, saveProject, clearSession, performPendingAction]);
+
   if (!data) {
     return (
       <EmptyState
@@ -180,8 +248,6 @@ export default function App() {
         showEdgeValues={signalState.showEdgeValues}
         showExtrema={signalState.showExtrema}
         isCombined={signalState.isCombined}
-        fileInputRef={fileInputRef}
-        projectInputRef={projectInputRef}
         setDeltaMode={signalState.setDeltaMode}
         setShowPills={signalState.setShowPills}
         setShowEdgeValues={signalState.setShowEdgeValues}
@@ -193,9 +259,13 @@ export default function App() {
         soloAll={signalState.soloAll}
         resetZoom={signalState.resetZoom}
         exportSnapshot={exportSnapshot}
-        saveProject={saveProject}
-        loadProject={fileIO.loadProject}
-        handleFile={fileIO.handleFile}
+        projectMenuOpen={projectMenuOpen}
+        setProjectMenuOpen={setProjectMenuOpen}
+        onClearRequest={requestClear}
+        onLoadCsvRequest={requestLoadCsv}
+        onLoadProjectRequest={requestLoadProject}
+        onSaveAndClear={saveAndClear}
+        onSaveProject={saveProject}
         setTutorialOpen={setTutorialOpen}
         setImportDialogOpen={fileIO.setImportDialogOpen}
         setImportMode={fileIO.setImportMode}
@@ -316,6 +386,36 @@ export default function App() {
         onClose={() => setTutorialOpen(false)}
         t={t}
         theme={theme}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.CSV,.tracelab"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) { f.name.endsWith(".tracelab") ? fileIO.loadProject(f) : fileIO.handleFile(f); }
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={projectInputRef}
+        type="file"
+        accept=".tracelab"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) fileIO.loadProject(f);
+          e.target.value = "";
+        }}
+      />
+      <ClearConfirmDialog
+        open={clearDialog.open}
+        trendName={data?.meta?.projectFile || data?.meta?.sourceFile || data?.meta?.trendName}
+        t={t}
+        onCancel={onDialogCancel}
+        onDiscardAndClear={onDialogDiscard}
+        onSaveAndClear={onDialogSave}
       />
     </div>
   );
