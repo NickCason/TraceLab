@@ -186,4 +186,43 @@ describe('useSignalState', () => {
     // resetZoom guards on data != null; with null data viewRange should remain unchanged
     expect(result.current.viewRange).toEqual([5, 10]);
   });
+
+  it('reset() returns all state to initial values', () => {
+    const { result } = renderHook(() => useSignalState(null));
+    act(() => {
+      result.current.setVisible([true, false, true]);
+      result.current.setGroups([1, 2, 3]);
+      result.current.setGroupNames({ 1: 'Renamed' });
+      result.current.setSignalStyles({ 0: { color: '#ff0000' } });
+      result.current.setMetadata({ 0: { displayName: 'X' } });
+      result.current.setAvgWindow({ 0: 20 });
+      result.current.setHideOriginal({ 0: true });
+      result.current.setSplitRanges({ 1: true });
+      result.current.setCursorIdx(5);
+      result.current.setCursor2Idx(10);
+      result.current.setDeltaMode(true);
+      result.current.setDeltaLocked(true);
+      result.current.setShowPills(false);
+      result.current.setShowEdgeValues(true);
+      result.current.setShowExtrema(true);
+      result.current.setViewRange([3, 7]);
+    });
+    act(() => { result.current.reset(); });
+    expect(result.current.visible).toEqual([]);
+    expect(result.current.groups).toEqual([]);
+    expect(result.current.groupNames).toEqual({});
+    expect(result.current.signalStyles).toEqual({});
+    expect(result.current.metadata).toEqual({});
+    expect(result.current.avgWindow).toEqual({});
+    expect(result.current.hideOriginal).toEqual({});
+    expect(result.current.splitRanges).toEqual({});
+    expect(result.current.cursorIdx).toBeNull();
+    expect(result.current.cursor2Idx).toBeNull();
+    expect(result.current.deltaMode).toBe(false);
+    expect(result.current.deltaLocked).toBe(false);
+    expect(result.current.showPills).toBe(true);
+    expect(result.current.showEdgeValues).toBe(false);
+    expect(result.current.showExtrema).toBe(false);
+    expect(result.current.viewRange).toEqual([0, 0]);
+  });
 });

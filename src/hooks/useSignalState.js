@@ -87,6 +87,25 @@ export function useSignalState(data) {
     return data.signals.map(s => s.values[cursor2Idx]);
   }, [data, cursor2Idx]);
 
+  const reset = useCallback(() => {
+    setVisible([]);
+    setGroups([]);
+    setGroupNames({});
+    setSignalStyles({});
+    setMetadata({});
+    setAvgWindow({});
+    setHideOriginal({});
+    setSplitRanges({});
+    setCursorIdx(null);
+    setCursor2Idx(null);
+    setDeltaMode(false);
+    setDeltaLocked(false);
+    setShowPills(true);
+    setShowEdgeValues(false);
+    setShowExtrema(false);
+    setViewRange([0, 0]);
+  }, []);
+
   return {
     visible, setVisible,
     groups, setGroups,
@@ -108,5 +127,6 @@ export function useSignalState(data) {
     combineAll, soloAll, isCombined,
     resetZoom, getDisplayName, handleRenameDisplay, getGroupLabel,
     toggleGroup, cursorValues, cursor2Values,
+    reset,
   };
 }
