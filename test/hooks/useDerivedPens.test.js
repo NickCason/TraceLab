@@ -232,6 +232,23 @@ describe('useDerivedPens', () => {
     expect(newData.signals.length).toBe(data.signals.length + 1);
   });
 
+  it('reset() clears derivedConfigs and closes the derivedDialog', () => {
+    const setData = vi.fn();
+    const signalState = mkSignalState();
+    const showToast = vi.fn();
+    const { result } = renderHook(() =>
+      useDerivedPens(mkData(), setData, signalState, ['#fff'], showToast));
+    act(() => {
+      result.current.setDerivedConfigs({ 3: { type: 'equation', expression: 's0 + s1' } });
+      result.current.setDerivedDialog({ open: true, mode: 'edit', groupIdx: 2, type: 'rolling_avg', editIdx: 1, initialDraft: { foo: 1 } });
+    });
+    act(() => { result.current.reset(); });
+    expect(result.current.derivedConfigs).toEqual({});
+    expect(result.current.derivedDialog).toEqual({
+      open: false, mode: 'create', groupIdx: 1, type: 'equation', editIdx: null, initialDraft: null,
+    });
+  });
+
   it('createDerivedPen with sum type produces a signal with isDerived:true', () => {
     const data = mkData();
     const setData = vi.fn();

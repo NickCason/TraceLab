@@ -4,11 +4,13 @@ import { shiftSeriesBackward, remapDerivedConfig, shiftIndexedMap } from "../uti
 import { buildEquationEvaluator } from "../utils/derivedEquation";
 import { inferSeamDomain } from "../utils/seamAdjustment";
 
+const INITIAL_DERIVED_DIALOG = {
+  open: false, mode: "create", groupIdx: 1, type: "equation", editIdx: null, initialDraft: null,
+};
+
 export function useDerivedPens(data, setData, signalState, gc, showToast) {
   const [derivedConfigs, setDerivedConfigs] = useState({});
-  const [derivedDialog, setDerivedDialog] = useState({
-    open: false, mode: "create", groupIdx: 1, type: "equation", editIdx: null, initialDraft: null,
-  });
+  const [derivedDialog, setDerivedDialog] = useState(INITIAL_DERIVED_DIALOG);
 
   const recomputeDerivedSignals = useCallback((sourceData, cfgMap) => {
     if (!sourceData) return sourceData;
@@ -152,10 +154,16 @@ export function useDerivedPens(data, setData, signalState, gc, showToast) {
     showToast(`Deleted derived pen: ${deletedName}`, "success");
   }, [data, derivedConfigs, signalState, recomputeDerivedSignals, showToast]);
 
+  const reset = useCallback(() => {
+    setDerivedConfigs({});
+    setDerivedDialog(INITIAL_DERIVED_DIALOG);
+  }, []);
+
   return {
     derivedConfigs, setDerivedConfigs,
     derivedDialog, setDerivedDialog,
     recomputeDerivedSignals,
     createDerivedPen, updateDerivedPen, deleteDerivedPen,
+    reset,
   };
 }
