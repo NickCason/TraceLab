@@ -1,18 +1,20 @@
 // src/components/AppHeader.jsx
 import ThemeToggle from "./ThemeToggle";
 import ToolBtn from "./ToolBtn";
+import ProjectMenu from "./ProjectMenu";
 import { FONT_DISPLAY, FONT_MONO } from "../constants/theme";
 
 export default function AppHeader({
   t, theme, setTheme, data, rebaseOffset, importMode, comparisonData,
   deltaMode, showPills, showEdgeValues, showExtrema, isCombined,
-  fileInputRef, projectInputRef,
   setDeltaMode, setShowPills, setShowEdgeValues, setShowExtrema,
   setCursorIdx, setCursor2Idx, setDeltaLocked,
   combineAll, soloAll, resetZoom,
-  exportSnapshot, saveProject, loadProject, handleFile,
+  exportSnapshot,
   setTutorialOpen, setImportDialogOpen,
   setImportMode, setComparisonData, setComparisonState, setActiveSidebarDataset,
+  projectMenuOpen, setProjectMenuOpen,
+  onClearRequest, onLoadCsvRequest, onLoadProjectRequest, onSaveAndClear, onSaveProject,
 }) {
   return (
     <div style={{ height: 48, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", borderBottom: `1px solid ${t.border}`, background: t.panel, flexShrink: 0, boxShadow: theme === "dark" ? "0 1px 8px rgba(0,0,0,0.3)" : "0 1px 4px rgba(0,0,0,0.08)" }}>
@@ -80,20 +82,16 @@ export default function AppHeader({
             <polyline points="21,15 16,10 5,21" />
           </svg>
         </ToolBtn>
-        <ToolBtn id="btn-save-project" onClick={saveProject} title="Save project" t={t}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <polyline points="17,21 17,13 7,13 7,21" /><polyline points="7,3 7,8 15,8" />
-          </svg>
-        </ToolBtn>
-        <ToolBtn id="btn-load-project" onClick={() => projectInputRef.current?.click()} title="Load project" t={t}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-          </svg>
-        </ToolBtn>
-        <input ref={projectInputRef} type="file" accept=".tracelab" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) loadProject(e.target.files[0]); }} />
-        <ToolBtn id="btn-load-csv" onClick={() => fileInputRef.current?.click()} t={t} style={{ background: t.accentDim, borderColor: `${t.accent}33`, color: t.accent }}>Load CSV</ToolBtn>
-        <input ref={fileInputRef} type="file" accept=".csv,.CSV,.tracelab" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) { f.name.endsWith(".tracelab") ? loadProject(f) : handleFile(f); } }} />
+        <ProjectMenu
+          open={projectMenuOpen}
+          setOpen={setProjectMenuOpen}
+          t={t}
+          onLoadCsv={onLoadCsvRequest}
+          onLoadProject={onLoadProjectRequest}
+          onSaveProject={onSaveProject}
+          onSaveAndClear={onSaveAndClear}
+          onClear={onClearRequest}
+        />
         {data && <ToolBtn id="btn-add-csv" onClick={() => setImportDialogOpen(true)} t={t} style={{ background: t.green + "18", borderColor: t.green + "33", color: t.green }}>+ CSV</ToolBtn>}
       </div>
     </div>

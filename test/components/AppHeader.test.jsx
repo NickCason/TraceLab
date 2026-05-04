@@ -1,6 +1,6 @@
 // test/components/AppHeader.test.jsx
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import AppHeader from '../../src/components/AppHeader.jsx';
 import { THEMES } from '../../src/constants/theme.js';
 
@@ -26,8 +26,6 @@ const mkProps = (overrides = {}) => ({
   showEdgeValues: false,
   showExtrema: false,
   isCombined: true,
-  fileInputRef: { current: null },
-  projectInputRef: { current: null },
   setDeltaMode: vi.fn(),
   setShowPills: vi.fn(),
   setShowEdgeValues: vi.fn(),
@@ -39,15 +37,19 @@ const mkProps = (overrides = {}) => ({
   soloAll: vi.fn(),
   resetZoom: vi.fn(),
   exportSnapshot: vi.fn(),
-  saveProject: vi.fn(),
-  loadProject: vi.fn(),
-  handleFile: vi.fn(),
   setTutorialOpen: vi.fn(),
   setImportDialogOpen: vi.fn(),
   setImportMode: vi.fn(),
   setComparisonData: vi.fn(),
   setComparisonState: vi.fn(),
   setActiveSidebarDataset: vi.fn(),
+  projectMenuOpen: false,
+  setProjectMenuOpen: vi.fn(),
+  onClearRequest: vi.fn(),
+  onLoadCsvRequest: vi.fn(),
+  onLoadProjectRequest: vi.fn(),
+  onSaveAndClear: vi.fn(),
+  onSaveProject: vi.fn(),
   ...overrides,
 });
 
@@ -70,5 +72,52 @@ describe('AppHeader', () => {
   it('does not show REBASED badge when rebaseOffset is 0', () => {
     const { container } = render(<AppHeader {...mkProps({ rebaseOffset: 0 })} />);
     expect(container.textContent).not.toContain('REBASED');
+  });
+
+  it('renders the project menu trigger and hides the old Save/Load Proj/Load CSV buttons', () => {
+    const { container } = render(<AppHeader {...mkProps({
+      projectMenuOpen: false,
+      setProjectMenuOpen: vi.fn(),
+      onClearRequest: vi.fn(),
+      onLoadCsvRequest: vi.fn(),
+      onLoadProjectRequest: vi.fn(),
+      onSaveAndClear: vi.fn(),
+    })} />);
+    expect(container.querySelector('#btn-project-menu')).not.toBeNull();
+    // Old buttons (by their previous IDs) should no longer exist.
+    expect(container.querySelector('#btn-save-project')).toBeNull();
+    expect(container.querySelector('#btn-load-project')).toBeNull();
+    expect(container.querySelector('#btn-load-csv')).toBeNull();
+  });
+
+  it('exposes menu items only when projectMenuOpen is true', () => {
+    const setProjectMenuOpen = vi.fn();
+    const { container, rerender } = render(<AppHeader {...mkProps({
+      projectMenuOpen: false, setProjectMenuOpen,
+      onClearRequest: vi.fn(), onLoadCsvRequest: vi.fn(),
+      onLoadProjectRequest: vi.fn(), onSaveAndClear: vi.fn(),
+    })} />);
+    expect(container.querySelector('#mi-load-csv')).toBeNull();
+    rerender(<AppHeader {...mkProps({
+      projectMenuOpen: true, setProjectMenuOpen,
+      onClearRequest: vi.fn(), onLoadCsvRequest: vi.fn(),
+      onLoadProjectRequest: vi.fn(), onSaveAndClear: vi.fn(),
+    })} />);
+    expect(container.querySelector('#mi-load-csv')).not.toBeNull();
+    expect(container.querySelector('#mi-clear')).not.toBeNull();
+  });
+
+  it('clicking Clear menu item invokes onClearRequest', () => {
+    const onClearRequest = vi.fn();
+    const { container } = render(<AppHeader {...mkProps({
+      projectMenuOpen: true,
+      setProjectMenuOpen: vi.fn(),
+      onClearRequest,
+      onLoadCsvRequest: vi.fn(),
+      onLoadProjectRequest: vi.fn(),
+      onSaveAndClear: vi.fn(),
+    })} />);
+    fireEvent.click(container.querySelector('#mi-clear'));
+    expect(onClearRequest).toHaveBeenCalledTimes(1);
   });
 });
