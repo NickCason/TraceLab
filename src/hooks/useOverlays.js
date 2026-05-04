@@ -57,9 +57,15 @@ export function useOverlays(data, groups, visible, viewRange, splitRanges) {
     }));
   }, []);
 
+  const reset = useCallback(() => {
+    setReferenceOverlays({});
+    setOverlayPickerGroup(null);
+  }, []);
+
   return {
     referenceOverlays, setReferenceOverlays,
     overlayPickerGroup, setOverlayPickerGroup,
     addOverlay, updateOverlay, deleteOverlay,
+    reset,
   };
 }

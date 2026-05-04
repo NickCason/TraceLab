@@ -95,4 +95,15 @@ describe('useOverlays', () => {
     expect(result.current.referenceOverlays[1].length).toBe(1);
     expect(result.current.referenceOverlays[1][0].id).toBe(secondId);
   });
+
+  it('reset() clears referenceOverlays and overlayPickerGroup', () => {
+    const { result } = renderHook(() => useOverlays(null, [], [], [0, 0], {}));
+    act(() => {
+      result.current.setReferenceOverlays({ 1: [{ id: 'x', type: 'line', value: 5 }] });
+      result.current.setOverlayPickerGroup(2);
+    });
+    act(() => { result.current.reset(); });
+    expect(result.current.referenceOverlays).toEqual({});
+    expect(result.current.overlayPickerGroup).toBeNull();
+  });
 });
