@@ -397,6 +397,10 @@ export default function App() {
         onClose={() => setTutorialOpen(false)}
         t={t}
         theme={theme}
+        stepCtx={{
+          openProjectMenu: () => setProjectMenuOpen(true),
+          closeProjectMenu: () => setProjectMenuOpen(false),
+        }}
       />
       <input
         ref={fileInputRef}

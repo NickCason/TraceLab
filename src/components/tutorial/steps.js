@@ -1,5 +1,5 @@
 /**
- * buildSteps(t) — returns the 17-step tutorial array for TraceLab.
+ * buildSteps(t) — returns the 18-step tutorial array for TraceLab.
  * t: THEMES[theme] object — provides accent, bg, panel, border, text1/2/3, green, cursor2 etc.
  * SVG colors are injected as template literals so they follow dark/light theme.
  */
@@ -23,10 +23,12 @@ export function buildSteps(t) {
 
     /* 2 — Loading a CSV */
     {
-      target: '#btn-load-csv',
+      target: '#mi-load-csv',
       title: 'Loading a CSV',
-      desc: 'Click Load CSV to open a Studio 5000 trend export. All signal columns, timestamps, and tag metadata are read automatically. You can also drag-and-drop a CSV file anywhere on the window.',
+      desc: 'Open the file menu (top right) and pick Load CSV to open a Studio 5000 trend export. All signal columns, timestamps, and tag metadata are read automatically. You can also drag-and-drop a CSV file anywhere on the window.',
       prefer: 'bottom',
+      onEnter: (ctx) => ctx.openProjectMenu?.(),
+      onLeave: (ctx) => ctx.closeProjectMenu?.(),
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="70" y="10" width="60" height="50" rx="5" stroke="${t.border}" stroke-width="1.5" fill="${t.bg}"/>
         <polyline points="110,10 130,10 130,28 110,28" stroke="${t.accent}" stroke-width="1" fill="${t.accentDim}"/>
@@ -322,10 +324,12 @@ export function buildSteps(t) {
 
     /* 16 — Project Save & Load */
     {
-      target: '#btn-save-project',
+      target: '#mi-save-project',
       title: 'Project Save & Load',
-      desc: 'Save your current session — all signal groups, display names, overlay configurations, and view range — as a .tracelab file. Load it later to restore the full state without re-configuring anything.',
+      desc: 'Open the file menu and pick Save project to save your current session — all signal groups, display names, overlay configurations, and view range — as a .tracelab file. Load project (.tracelab) restores the full state without re-configuring anything.',
       prefer: 'bottom',
+      onEnter: (ctx) => ctx.openProjectMenu?.(),
+      onLeave: (ctx) => ctx.closeProjectMenu?.(),
       svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="30" y="12" width="44" height="50" rx="5" stroke="${t.accent}" stroke-width="1.5" fill="${t.bg}"/>
         <path d="M30 12 L30 50 L74 50 L74 28 L56 12 Z" stroke="${t.accent}" stroke-width="1.5" fill="${t.bg}"/>
@@ -343,7 +347,38 @@ export function buildSteps(t) {
       </svg>`,
     },
 
-    /* 17 — Ready! */
+    /* 17 — Clearing & Switching Trends */
+    {
+      target: '#mi-clear',
+      title: 'Clearing & Switching Trends',
+      desc: 'When you\'re done, use Clear trend to return to the home screen, or Save & clear to save your session first. Loading a different CSV from this menu also offers to save your work before replacing the current trend.',
+      prefer: 'bottom',
+      onEnter: (ctx) => ctx.openProjectMenu?.(),
+      onLeave: (ctx) => ctx.closeProjectMenu?.(),
+      svg: `<svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="20" y="10" width="100" height="60" rx="6" stroke="${t.border}" stroke-width="1" fill="${t.panel}"/>
+        <text x="30" y="22" font-size="6.5" fill="${t.text3}" font-family="JetBrains Mono, monospace">SAVE</text>
+        <rect x="28" y="26" width="84" height="11" rx="2" fill="${t.accentDim}" stroke="${t.accent}55" stroke-width="0.5"/>
+        <text x="34" y="34" font-size="7" fill="${t.accent}" font-family="JetBrains Mono, monospace">Save project</text>
+        <rect x="28" y="40" width="84" height="11" rx="2" fill="${t.green}22" stroke="${t.green}55" stroke-width="0.5"/>
+        <text x="34" y="48" font-size="7" fill="${t.green}" font-family="JetBrains Mono, monospace">Save &amp; clear</text>
+        <text x="30" y="60" font-size="6.5" fill="${t.text3}" font-family="JetBrains Mono, monospace">SESSION</text>
+        <rect x="28" y="62" width="84" height="11" rx="2" fill="${t.red}18" stroke="${t.red}55" stroke-width="0.5"/>
+        <text x="34" y="70" font-size="7" fill="${t.red}" font-family="JetBrains Mono, monospace">Clear trend…</text>
+        <line x1="130" y1="40" x2="148" y2="40" stroke="${t.text3}" stroke-width="1" stroke-dasharray="2 2"/>
+        <polygon points="148,36 156,40 148,44" fill="${t.text3}"/>
+        <rect x="160" y="16" width="110" height="48" rx="6" stroke="${t.border}" stroke-width="1" fill="${t.bg}"/>
+        <text x="215" y="28" font-size="7" fill="${t.text2}" text-anchor="middle" font-family="Sora, sans-serif" font-weight="700">Clear current trend?</text>
+        <rect x="166" y="36" width="32" height="13" rx="3" fill="${t.surface}" stroke="${t.border}" stroke-width="0.5"/>
+        <text x="182" y="45" font-size="6.5" fill="${t.text3}" text-anchor="middle" font-family="JetBrains Mono, monospace">Cancel</text>
+        <rect x="200" y="36" width="32" height="13" rx="3" fill="${t.red}22" stroke="${t.red}55" stroke-width="0.5"/>
+        <text x="216" y="45" font-size="6.5" fill="${t.red}" text-anchor="middle" font-family="JetBrains Mono, monospace">Discard</text>
+        <rect x="234" y="36" width="32" height="13" rx="3" fill="${t.green}22" stroke="${t.green}55" stroke-width="0.5"/>
+        <text x="250" y="45" font-size="6.5" fill="${t.green}" text-anchor="middle" font-family="JetBrains Mono, monospace">Save</text>
+      </svg>`,
+    },
+
+    /* 18 — Ready! */
     {
       target: null,
       title: "You're Ready!",
