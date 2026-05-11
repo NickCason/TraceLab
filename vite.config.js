@@ -1,9 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const isElectron = process.env.BUILD_TARGET === "electron";
+
 export default defineConfig({
   plugins: [react()],
-  base: "/TraceLab/",
+  base: isElectron ? "./" : "/TraceLab/",
   server: {
     host: true,
     port: 5173,
