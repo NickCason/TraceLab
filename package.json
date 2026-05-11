@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "build:electron": "cross-env BUILD_TARGET=electron vite build",
-    "package:win": "npm run build:electron && electron-builder --win portable",
+    "package:win": "npm run build:electron && electron-builder --win",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -29,7 +29,9 @@
       "package.json"
     ],
     "win": {
-      "target": "portable",
+      "target": [
+        { "target": "portable", "arch": ["x64"] }
+      ],
       "icon": "electron/icon.ico",
       "artifactName": "TraceLab-${version}-portable.exe"
     },
