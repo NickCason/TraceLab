@@ -33,10 +33,10 @@
         { "target": "portable", "arch": ["x64"] }
       ],
       "icon": "electron/icon.ico",
-      "artifactName": "TraceLab-${version}-portable.exe"
+      "artifactName": "TraceLab-portable.exe"
     },
     "portable": {
-      "artifactName": "TraceLab-${version}-portable.exe"
+      "artifactName": "TraceLab-portable.exe"
     }
   },
   "dependencies": {

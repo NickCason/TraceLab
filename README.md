@@ -88,7 +88,7 @@ npm install
 npm run package:win
 ```
 
-The output is `release/TraceLab-<version>-portable.exe`. Copy that file anywhere (USB stick, network share, Tailscale) and double-click to run.
+The output is `release/TraceLab-portable.exe`. Upload that file to the GitHub release for the current version so `releases/latest/download/TraceLab-portable.exe` keeps resolving (this is the URL the in-app download button points at). Copy locally to a USB stick / network share / Tailscale to run anywhere.
 
 Notes:
 
