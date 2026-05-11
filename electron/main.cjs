@@ -9,7 +9,6 @@ function createWindow() {
     minHeight: 600,
     title: "TraceLab",
     backgroundColor: "#1a1a1e",
-    autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -20,7 +19,9 @@ function createWindow() {
   Menu.setApplicationMenu(null);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (url.startsWith("https://") || url.startsWith("http://")) {
+      shell.openExternal(url);
+    }
     return { action: "deny" };
   });
 
