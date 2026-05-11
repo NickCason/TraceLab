@@ -48,6 +48,31 @@ export default function EmptyState({ t, theme, setTheme, fileInputRef, loadProje
           }}
         />
         <div style={{ marginTop: 24 }}><ThemeToggle theme={theme} setTheme={setTheme} /></div>
+        <div style={{ marginTop: 18 }}>
+          <a
+            href="https://github.com/NickCason/TraceLab/releases/latest/download/TraceLab-portable.exe"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 11,
+              letterSpacing: 1.5,
+              textTransform: "uppercase",
+              fontWeight: 500,
+              color: t.text3,
+              textDecoration: "none",
+              transition: "color 0.15s",
+              fontFamily: FONT_DISPLAY,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = t.accent)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = t.text3)}
+          >
+            <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 3v12m-4-4l4 4 4-4M4 17h12" />
+            </svg>
+            Download for Windows
+          </a>
+        </div>
       </div>
       {toast && <Toast message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </div>
