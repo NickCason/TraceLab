@@ -79,6 +79,24 @@ npm run build
 npm run preview -- --host
 ```
 
+## Portable Windows executable
+
+To produce a single self-contained `.exe` that runs on any Win10/11 x64 machine with no Node, no installer, and no admin rights:
+
+```bash
+npm install
+npm run package:win
+```
+
+The output is `release/TraceLab-<version>-portable.exe`. Copy that file anywhere (USB stick, network share, Tailscale) and double-click to run.
+
+Notes:
+
+- The `.exe` is unsigned, so Windows SmartScreen will show "unknown publisher" on first launch. Click **More info → Run anyway**.
+- On launch the `.exe` extracts to `%TEMP%` and runs from there; it cleans itself up on exit.
+- This build runs entirely offline. All assets are bundled.
+- The build targets Windows x64 by default. To also build for Windows on ARM64, change `"arch": ["x64"]` in `package.json` → `build.win.target` to `["x64", "arm64"]`.
+
 ## Optional default CSV
 
 If you want the app to auto-load a CSV on startup, create a `.env` file from `.env.example` and set:
