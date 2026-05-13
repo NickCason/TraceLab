@@ -1,0 +1,14 @@
+name = "tracelab-ping"
+main = "src/worker.js"
+compatibility_date = "2025-05-01"
+
+# Secrets (set via `wrangler secret put`):
+#   PUSHOVER_USER  - your Pushover user key
+#   PUSHOVER_TOKEN - the app token for TraceLab on Pushover
+
+[vars]
+ALLOWED_ORIGIN = "https://nickcason.github.io"
+RATE_LIMIT_PER_MINUTE = "20"
+
+[observability]
+enabled = true
