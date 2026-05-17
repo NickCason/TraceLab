@@ -1,0 +1,47 @@
+name: Release Windows Portable
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-windows
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - run: npm test
+
+      - run: npm run package:win
+
+      - name: Resolve release tag
+        id: vars
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          short=$(echo "$GITHUB_SHA" | cut -c1-7)
+          echo "tag=v${version}-${short}" >> "$GITHUB_OUTPUT"
+          echo "name=TraceLab v${version} (${short})" >> "$GITHUB_OUTPUT"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.name }}
+          files: release/TraceLab-portable.exe
+          make_latest: "true"
+          generate_release_notes: true
