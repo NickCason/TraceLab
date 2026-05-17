@@ -9,6 +9,7 @@ function createWindow() {
     minHeight: 600,
     title: "TraceLab",
     backgroundColor: "#1a1a1e",
+    show: false,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -17,6 +18,8 @@ function createWindow() {
   });
 
   Menu.setApplicationMenu(null);
+
+  win.once("ready-to-show", () => win.show());
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://") || url.startsWith("http://")) {

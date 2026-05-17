@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useSignalState } from "./hooks/useSignalState";
 import { useDerivedPens } from "./hooks/useDerivedPens";
 import { useOverlays } from "./hooks/useOverlays";
@@ -18,7 +18,6 @@ import { GROUP_COLORS_DARK, GROUP_COLORS_LIGHT } from "./constants/groups";
 import { fmtDateISO } from "./utils/date";
 import { downloadBlob } from "./utils/download";
 import { buildProjectPayload } from "./utils/projectPersistence";
-import { ensureFonts } from "./utils/fonts";
 
 export default function App() {
   const [data, setData] = useState(null);
@@ -38,8 +37,6 @@ export default function App() {
   const t = THEMES[theme];
   const gc = theme === "dark" ? GROUP_COLORS_DARK : GROUP_COLORS_LIGHT;
   const showToast = useCallback((msg, type = "info") => setToast({ msg, type }), []);
-
-  useEffect(() => { ensureFonts(); }, []);
 
   const signalState = useSignalState(data);
   const derivedPens = useDerivedPens(data, setData, signalState, gc, showToast);
