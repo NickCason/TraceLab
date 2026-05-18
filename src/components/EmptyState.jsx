@@ -48,6 +48,7 @@ export default function EmptyState({ t, theme, setTheme, fileInputRef, loadProje
           }}
         />
         <div style={{ marginTop: 24 }}><ThemeToggle theme={theme} setTheme={setTheme} /></div>
+        {!import.meta.env.IS_DESKTOP && (
         <div style={{ marginTop: 18 }}>
           <a
             href="https://github.com/NickCason/TraceLab/releases/latest/download/TraceLab-portable.exe"
@@ -73,6 +74,7 @@ export default function EmptyState({ t, theme, setTheme, fileInputRef, loadProje
             Download for Windows
           </a>
         </div>
+        )}
       </div>
       {toast && <Toast message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </div>
