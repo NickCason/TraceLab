@@ -23,11 +23,27 @@ jobs:
           node-version: 22
           cache: npm
 
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
       - run: npm ci --no-audit --no-fund
 
       - run: npm test
 
-      - run: npm run package:win
+      - name: Build Tauri portable
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc
+
+      - name: Stage portable artifact
+        shell: bash
+        run: |
+          mkdir -p release
+          cp src-tauri/target/x86_64-pc-windows-msvc/release/TraceLab.exe release/TraceLab-portable.exe
+          ls -lh release/TraceLab-portable.exe
 
       - name: Resolve release tag
         id: vars
