@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useSignalState } from "./hooks/useSignalState";
 import { useDerivedPens } from "./hooks/useDerivedPens";
 import { useOverlays } from "./hooks/useOverlays";
@@ -33,6 +33,14 @@ export default function App() {
   const [clearDialog, setClearDialog] = useState({ open: false, pendingAction: null });
   const fileInputRef = useRef(null);
   const projectInputRef = useRef(null);
+
+  useEffect(() => {
+    if (import.meta.env.IS_DESKTOP) {
+      import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+        getCurrentWindow().show();
+      });
+    }
+  }, []);
 
   const t = THEMES[theme];
   const gc = theme === "dark" ? GROUP_COLORS_DARK : GROUP_COLORS_LIGHT;
